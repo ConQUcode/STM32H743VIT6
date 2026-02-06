@@ -35,3 +35,4 @@ vit6\main.o: C:/Users/11737/STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1/Drivers
 vit6\main.o: C:/Users/11737/STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h
 vit6\main.o: ../Core/Inc/fdcan.h
 vit6\main.o: ../Core/Inc/gpio.h
+vit6\main.o: ../APPLICATION/Test.h

@@ -36,4 +36,4 @@ vit6\controller.o: C:/Users/11737/STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1/D
 vit6\controller.o: C:/Users/11737/STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pwr_ex.h
 vit6\controller.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 vit6\controller.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
-vit6\controller.o: ..\BSP\bsp_dwt.h
+vit6\controller.o: ../BSP/bsp_dwt.h

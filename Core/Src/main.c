@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "Test.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,7 +94,7 @@ int main(void)
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
   /* USER CODE BEGIN 2 */
-
+   Test_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,6 +104,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+		// ��ɫLED��˸����
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_0);
+    HAL_Delay(500);  // 0.5����˸һ��
+    
   }
   /* USER CODE END 3 */
 }

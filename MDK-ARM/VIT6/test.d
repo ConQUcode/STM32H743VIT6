@@ -1,6 +1,6 @@
 vit6\test.o: ..\APPLICATION\Test.c
 vit6\test.o: ..\APPLICATION\Test.h
-vit6\test.o: ..\BSP\bsp_dwt.h
+vit6\test.o: ../BSP/bsp_dwt.h
 vit6\test.o: ../Core/Inc/main.h
 vit6\test.o: C:/Users/11737/STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h
 vit6\test.o: ../Core/Inc/stm32h7xx_hal_conf.h
