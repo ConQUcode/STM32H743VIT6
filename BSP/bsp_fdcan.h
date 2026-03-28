@@ -28,8 +28,6 @@
 #define FDCAN_LEN_48  48
 #define FDCAN_LEN_64  64
 
-#pragma pack(1) // 1字节对齐
-
 /* FDCAN的实例结构体 */
 typedef struct fdcan_instance {
     FDCAN_HandleTypeDef *fdcan_handle;  // FDCAN句柄
@@ -42,14 +40,13 @@ typedef struct fdcan_instance {
     uint32_t rx_id;                      // 接收id
     uint8_t rx_len;                      // 接收长度(实际字节数)
     
-    uint8_t use_canfd;                   // 工作模式: 0=经典CAN(兼容3508等), 1=CAN FD
+    uint8_t use_canfd;                   // 工作模式镜像: 0=经典CAN, 1=CAN FD
 
     // 接收的回调函数,用于解析接收到的数据
     void (*can_module_callback)(struct fdcan_instance *);
     void *id; // 使用FDCAN外设的模块指针
 
 } FDCAN_Instance;
-#pragma pack()
 
 /* FDCAN初始化实例结构体 */
 typedef struct
@@ -61,6 +58,42 @@ typedef struct
     void (*can_module_callback)(FDCAN_Instance *); // 处理接收数据的回调函数
     void *id;                                // 拥有FDCAN实例的模块地址
 } FDCAN_Init_Config_s;
+
+typedef struct
+{
+    uint8_t started;
+    uint8_t next_std_filter_idx;
+    uint8_t last_is_canfd;
+    uint8_t reserved;
+
+    uint32_t start_ok_count;
+    uint32_t start_fail_count;
+    uint32_t filter_ok_count;
+    uint32_t filter_fail_count;
+    uint32_t tx_ok_count;
+    uint32_t tx_fail_count;
+    uint32_t tx_timeout_count;
+    uint32_t rx_match_count;
+    uint32_t rx_unmatched_count;
+
+    uint32_t last_tx_id;
+    uint32_t last_tx_dlc;
+    uint32_t last_tx_fdformat;
+    uint32_t last_tx_tick_ms;
+
+    uint32_t last_rx_id;
+    uint32_t last_rx_dlc;
+    uint32_t last_rx_tick_ms;
+
+    uint32_t last_hal_status;
+    uint32_t last_error_code;
+
+    uint8_t last_tx_data[8];
+    uint8_t last_rx_data[8];
+} FDCAN_Debug_Bus_s;
+
+extern volatile FDCAN_Debug_Bus_s g_fdcan1_debug;
+extern volatile FDCAN_Debug_Bus_s g_fdcan2_debug;
 
 /**
  * @brief 注册(初始化)一个FDCAN实例

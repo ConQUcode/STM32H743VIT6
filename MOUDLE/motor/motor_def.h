@@ -82,6 +82,12 @@ typedef enum {
     MOTOR_RAMP_ENABLE  = 1,
 } Motor_Ramp_Flag_e;
 
+/* 角度环工作模式 */
+typedef enum {
+    MOTOR_ANGLE_MODE_TOTAL = 0,       // 多圈累计角度闭环
+    MOTOR_ANGLE_MODE_SINGLE_TURN = 1, // 单圈最短路径角度闭环
+} Motor_Angle_Mode_e;
+
 /* 电机控制设置,包括闭环类型,反转标志和反馈来源 */
 typedef struct
 {
@@ -91,6 +97,7 @@ typedef struct
     Feedback_Reverse_Flag_e feedback_reverse_flag; // 反馈是否反向
     Feedback_Source_e angle_feedback_source;       // 角度反馈类型
     Feedback_Source_e speed_feedback_source;       // 速度反馈类型
+    Motor_Angle_Mode_e angle_mode;                 // 角度环模式: 多圈累计/单圈最短路径
     Feedfoward_Type_e feedforward_flag;            // 前馈标志
     Motor_Ramp_Flag_e angle_ramp_flag;             // 角度斜坡标志
     Motor_Ramp_Flag_e speed_ramp_flag;             // 速度斜坡标志

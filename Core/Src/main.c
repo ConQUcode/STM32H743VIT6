@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "fdcan.h"
+#include "spi.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -93,8 +94,10 @@ int main(void)
   MX_GPIO_Init();
   MX_FDCAN1_Init();
   MX_FDCAN2_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
-   Test_Init();
+   // BSP_CAN_Init();  // 注释掉！让 bsp_fdcan 框架自己管理过滤器和启动
+  ChassisInit();      // DJIMotorInit() 会调用 FDCANRegister()，自动配置过滤器并启动FDCAN
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -104,10 +107,10 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		// ��ɫLED��˸����
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_0);
-    HAL_Delay(500);  // 0.5����˸һ��
-    
+    // 恢复电机控制
+    //CONTROL_3508(&hfdcan1, 0x200, 5000, 0, 0, 0);
+		ChassisTask();
+    HAL_Delay(1);
   }
   /* USER CODE END 3 */
 }

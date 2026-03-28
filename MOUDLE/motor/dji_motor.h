@@ -21,9 +21,14 @@
 #define DJI_MOTOR_CNT 12 // DJI电机数量
 
 /* 滤波系数设置为1的时候即关闭滤波 */
-#define SPEED_SMOOTH_COEF   0.85f     // 最好大于0.85
-#define CURRENT_SMOOTH_COEF 0.9f      // 必须大于0.9
-#define ECD_ANGLE_COEF_DJI  0.043945f // (360/8192),将编码器值转化为角度制
+#define SPEED_SMOOTH_COEF      0.35f      // 原始速度反馈的平滑系数
+#define SPEED_ECD_SMOOTH_COEF  0.25f      // 基于编码器增量重构速度时使用更稳的平滑系数
+#define CURRENT_SMOOTH_COEF    0.9f       // 必须大于0.9
+#define ECD_ANGLE_COEF_DJI     0.043945f  // (360/8192),将编码器值转化为角度制
+#define DJI_ECD_RESOLUTION     8192
+#define DJI_ECD_HALF_RANGE     (DJI_ECD_RESOLUTION / 2)
+#define DJI_RPM_TO_DEG_PER_SEC 6.0f
+#define DJI_SPEED_ZERO_RPM     8
 
 /* DJI电机CAN反馈信息*/
 typedef struct
@@ -31,12 +36,18 @@ typedef struct
     uint16_t last_ecd;        // 上一次读取的编码器值
     uint16_t ecd;             // 0-8191,刻度总共有8192格
     float angle_single_round; // 单圈角度
+    int16_t speed_rpm;        // 电调原始转速反馈,单位rpm
+    float speed_aps_raw;      // 原始转速换算后的角速度,单位度/秒
     float speed_aps;          // 角速度,单位为:度/秒
     int16_t real_current;     // 实际电流
     uint8_t temperature;      // 温度 Celsius
 
-    float total_angle;   // 总角度,注意方向
-    int32_t total_round; // 总圈数,注意方向
+    int32_t total_ecd;        // 连续累计编码器值,相对offset
+    int32_t total_ecd_raw;    // 连续累计编码器值,原始累计
+    int32_t total_ecd_offset; // 编码器累计偏移
+    float total_angle;     // 总角度,注意方向
+    float total_angle_raw; // 编码器累积角度,未扣除zero_offset
+    int32_t total_round;   // 总圈数,注意方向
 	
 		float zero_offset; // 新增的零点偏移量
 } DJI_Motor_Measure_s;
@@ -58,7 +69,50 @@ typedef struct
     Daemon_Instance *daemon;
     uint32_t feed_cnt;
     float dt;
+    int16_t last_set;
+    uint8_t feedback_initialized;
+    uint8_t feedback_updated;
 } DJIMotor_Instance;
+
+typedef struct
+{
+    uint32_t init_ok_count;
+    uint32_t init_fail_count;
+    uint32_t decode_count;
+    uint32_t control_count;
+
+    uint32_t last_init_tx_id;
+    uint32_t last_init_rx_id;
+    uint8_t last_init_sender_group;
+    uint8_t last_init_message_num;
+    uint8_t last_init_stage;
+    uint8_t reserved;
+
+    uint32_t last_decode_rx_id;
+    uint16_t last_ecd;
+    int16_t last_speed_raw;
+    int16_t last_current_raw;
+    uint8_t last_temperature;
+    uint8_t last_sender_group;
+    uint8_t last_message_num;
+    uint8_t last_sender_enable_mask;
+
+    int32_t last_ecd_delta_norm;
+    int32_t last_total_ecd;
+    float last_feedback_dt_ms;
+    float last_speed_aps;
+    float last_speed_from_ecd;
+    float last_total_angle;
+    float last_control_ref;
+    int16_t last_control_set;
+    uint32_t last_tx_std_id;
+    int16_t last_packed_set;
+
+    uint8_t sender_last_tx_ok[6];
+    uint32_t sender_last_tx_count[6];
+} DJIMotor_Debug_s;
+
+extern volatile DJIMotor_Debug_s g_dji_motor_debug;
 
 
 /**
