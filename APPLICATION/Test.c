@@ -26,7 +26,7 @@ static void ChassisSetMotorRef(void)
 void ChassisInit(void)
 {
     Motor_Init_Config_s chassis_motor_config = {
-        .can_init_config.fdcan_handle = &hfdcan2,
+        .can_init_config.fdcan_handle = &hfdcan1,
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 0.12f,

@@ -35,5 +35,18 @@ vit6/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pwr_ex.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi_ex.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS_V2\cmsis_os.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\FreeRTOS.h \
+  ..\Core\Inc\FreeRTOSConfig.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\projdefs.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\portable.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\deprecated_definitions.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\portable\GCC\ARM_CM7\r0p1\portmacro.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\mpu_wrappers.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\task.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\list.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS_V2\cmsis_os2.h \
   ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\Core\Inc\spi.h \
   ..\Core\Inc\gpio.h ..\APPLICATION\Test.h

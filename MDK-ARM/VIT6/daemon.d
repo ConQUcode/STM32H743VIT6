@@ -37,4 +37,6 @@ vit6/daemon.o: ..\MOUDLE\daemon\daemon.c ..\MOUDLE\daemon\daemon.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pwr_ex.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi_ex.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h
