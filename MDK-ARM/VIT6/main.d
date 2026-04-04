@@ -37,6 +37,9 @@ vit6/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_spi_ex.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_tim_ex.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_ll_usb.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd_ex.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS_V2\cmsis_os.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\FreeRTOS.h \
   ..\Core\Inc\FreeRTOSConfig.h \
@@ -49,4 +52,17 @@ vit6/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\include\list.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS_V2\cmsis_os2.h \
   ..\Core\Inc\fdcan.h ..\Core\Inc\main.h ..\Core\Inc\spi.h \
-  ..\Core\Inc\gpio.h ..\APPLICATION\Test.h
+  ..\USB_DEVICE\App\usb_device.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_def.h \
+  ..\USB_DEVICE\Target\usbd_conf.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \
+  C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h ..\Core\Inc\gpio.h \
+  ..\APPLICATION\Test.h ..\MOUDLE\Flash\Flash.h ..\MOUDLE\usb\usb.h \
+  ..\USB_DEVICE\App\usbd_cdc_if.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc\usbd_cdc.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_def.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_core.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ctlreq.h

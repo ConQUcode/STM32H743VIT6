@@ -1,5 +1,5 @@
 #include "Test.h"
-
+#include "Flash.h"
 #include "bsp_dwt.h"
 #include "dji_motor.h"
 #include "fdcan.h"
@@ -79,12 +79,12 @@ void ChassisInit(void)
 
 void ChassisTask(void)
 {
-    if (motor_rf == NULL) {
-        return;
-    }
+//    if (motor_rf == NULL) {
+//        return;
+//    }
 
-    ChassisSetMotorRef();
-    DJIMotorControl();
+//    ChassisSetMotorRef();
+
 }
 
 /* 兼容旧测试入口,实际逻辑统一走底盘主入口 */
