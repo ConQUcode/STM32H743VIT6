@@ -1,3 +1,4 @@
+// Generated at: 2026-03-29T21:35:27+08:00
 #pragma once
 #include <stdint.h>
 
@@ -5,7 +6,16 @@
 /* USER CODE END Includes */
 
 // 协议哈希校验码
-#define PROTOCOL_HASH 0x22FFBA3E
+#define PROTOCOL_HASH 0xCF4CE2B6
+
+// 校验算法: CRC8
+#define CHECKSUM_ALGO_CRC8 1
+
+// 握手配置
+#define CFG_REQUIRE_HANDSHAKE 1
+
+// 心跳配置
+#define CFG_ENABLE_HEARTBEAT 1
 
 /* USER CODE BEGIN Private_Defines */
 /* USER CODE END Private_Defines */
@@ -16,16 +26,17 @@
 
 // 数据包ID定义
 typedef enum {
-    PACKET_ID_HEARTBEAT = 0,
+    PACKET_ID_HEARTBEAT = 254,
     PACKET_ID_HANDSHAKE = 255,
-    PACKET_ID_CMDVEL = 1,
-    PACKET_ID_GENERICSTATUS = 25,
-    PACKET_ID_WEAPONDOCKFEEDBACK = 2,
-    PACKET_ID_STAIRPOSEGOAL = 3,
-    PACKET_ID_STAIRTYPE = 4,
-    PACKET_ID_MERLINPICKGOAL = 5,
-    PACKET_ID_GRIDPLACEGOAL = 6,
-    PACKET_ID_GRIDATTACKGOAL = 7,
+    PACKET_ID_CMDVEL = 0,
+    PACKET_ID_GRIPPERCONTROLGOAL = 1,
+    PACKET_ID_WEAPONDOCKGOAL = 2,
+    PACKET_ID_MLCONTROLTX = 3,
+    PACKET_ID_MERLINPICKGOAL = 4,
+    PACKET_ID_GRIDPLACEGOAL = 5,
+    PACKET_ID_GRIDATTACKGOAL = 6,
+    PACKET_ID_GENERICSTATUSTX = 25,
+    PACKET_ID_GENERICSTATUSRX = 32,
 } PacketID;
 
 #pragma pack(1)
@@ -44,27 +55,19 @@ typedef struct {
 } Packet_CmdVel;
 
 typedef struct {
-    float task_index;
-    float tx_id;
-    float tx_status;
-    float rx_id;
-    float rx_status;
-} Packet_GenericStatus;
+    uint8_t task_complete;
+} Packet_GripperControlGoal;
 
 typedef struct {
     float x_error;
     float y_error;
     float pitch_error;
-} Packet_WeaponDockFeedback;
+} Packet_WeaponDockGoal;
 
 typedef struct {
-    float target_dist;
-    float yaw;
-} Packet_StairPoseGoal;
-
-typedef struct {
-    int32_t task_type;
-} Packet_StairType;
+    uint8_t task_type;
+    uint8_t stage_status;
+} Packet_MlControlTx;
 
 typedef struct {
     float x;
@@ -85,12 +88,52 @@ typedef struct {
     float z;
 } Packet_GridAttackGoal;
 
+typedef struct {
+    uint8_t task_id;
+    uint8_t tx_id;
+    uint8_t tx_status;
+} Packet_GenericStatusTx;
+
+typedef struct {
+    uint8_t task_id;
+    uint8_t rx_id;
+    uint8_t rx_status;
+} Packet_GenericStatusRx;
+
 #pragma pack()
+
+// 协议辅助函数声明
+uint8_t calculate_checksum(const uint8_t* data, uint8_t len);
+void protocol_fsm_feed(uint8_t byte);
+
+// 用户可覆盖的接收回调与自动生成的发送函数声明
+void on_receive_Heartbeat(const Packet_Heartbeat* pkt);
+void send_Heartbeat(const Packet_Heartbeat* pkt);
+void on_receive_Handshake(const Packet_Handshake* pkt);
+void send_Handshake(const Packet_Handshake* pkt);
+void on_receive_CmdVel(const Packet_CmdVel* pkt);
+void send_CmdVel(const Packet_CmdVel* pkt);
+void on_receive_GripperControlGoal(const Packet_GripperControlGoal* pkt);
+void send_GripperControlGoal(const Packet_GripperControlGoal* pkt);
+void on_receive_WeaponDockGoal(const Packet_WeaponDockGoal* pkt);
+void send_WeaponDockGoal(const Packet_WeaponDockGoal* pkt);
+void on_receive_MlControlTx(const Packet_MlControlTx* pkt);
+void send_MlControlTx(const Packet_MlControlTx* pkt);
+void on_receive_MerlinPickGoal(const Packet_MerlinPickGoal* pkt);
+void send_MerlinPickGoal(const Packet_MerlinPickGoal* pkt);
+void on_receive_GridPlaceGoal(const Packet_GridPlaceGoal* pkt);
+void send_GridPlaceGoal(const Packet_GridPlaceGoal* pkt);
+void on_receive_GridAttackGoal(const Packet_GridAttackGoal* pkt);
+void send_GridAttackGoal(const Packet_GridAttackGoal* pkt);
+void on_receive_GenericStatusTx(const Packet_GenericStatusTx* pkt);
+void send_GenericStatusTx(const Packet_GenericStatusTx* pkt);
+void on_receive_GenericStatusRx(const Packet_GenericStatusRx* pkt);
+void send_GenericStatusRx(const Packet_GenericStatusRx* pkt);
 
 /* USER CODE BEGIN User_Types */
 /* USER CODE END User_Types */
 
-// CRC8查找表
+// CRC8查找表 (多项式 0x31)
 static const uint8_t CRC8_TABLE[256] = {
     0x00, 0x31, 0x62, 0x53, 0xC4, 0xF5, 0xA6, 0x97, 0xB9, 0x88, 0xDB, 0xEA, 0x7D, 0x4C, 0x1F, 0x2E,
     0x43, 0x72, 0x21, 0x10, 0x87, 0xB6, 0xE5, 0xD4, 0xFA, 0xCB, 0x98, 0xA9, 0x3E, 0x0F, 0x5C, 0x6D,

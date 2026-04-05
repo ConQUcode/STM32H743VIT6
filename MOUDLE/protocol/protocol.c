@@ -1,3 +1,4 @@
+// Generated at: 2026-03-29T21:35:27+08:00
 #include "protocol.h"
 #include <string.h>
 
@@ -20,15 +21,19 @@ static uint8_t rx_buffer[256]; // 定义的最大包长
 static uint16_t rx_cnt = 0;
 static uint8_t rx_data_len = 0;
 static uint8_t rx_id = 0;
-static uint8_t rx_crc = 0;
+static uint8_t rx_checksum = 0;
 
-// CRC8 计算函数 (查表法)
-uint8_t calculate_crc8(const uint8_t* data, uint8_t len, uint8_t initial_crc) {
-    uint8_t crc = initial_crc;
+// CRC8 校验函数 (查表法, 多项式 0x31)
+static uint8_t checksum_update(uint8_t current, uint8_t byte) {
+    return CRC8_TABLE[current ^ byte];
+}
+
+uint8_t calculate_checksum(const uint8_t* data, uint8_t len) {
+    uint8_t cs = 0;
     for (uint8_t i = 0; i < len; i++) {
-        crc = CRC8_TABLE[crc ^ data[i]];
+        cs = checksum_update(cs, data[i]);
     }
-    return crc;
+    return cs;
 }
 
 /* USER CODE BEGIN Private_Variables */
@@ -37,10 +42,16 @@ uint8_t calculate_crc8(const uint8_t* data, uint8_t len, uint8_t initial_crc) {
 
 // 用户需要实现的回调函数
 __attribute__((weak)) void on_receive_Heartbeat(const Packet_Heartbeat* pkt) {
+    // Default system behavior: ack the latest heartbeat with the same count.
+    send_Heartbeat(pkt);
 /* USER CODE BEGIN on_receive_Heartbeat */
 /* USER CODE END on_receive_Heartbeat */
 }
 __attribute__((weak)) void on_receive_Handshake(const Packet_Handshake* pkt) {
+    // Default system behavior: ack matching protocol hash automatically.
+    if (pkt->protocol_hash == PROTOCOL_HASH) {
+        send_Handshake(pkt);
+    }
 /* USER CODE BEGIN on_receive_Handshake */
 /* USER CODE END on_receive_Handshake */
 }
@@ -48,21 +59,17 @@ __attribute__((weak)) void on_receive_CmdVel(const Packet_CmdVel* pkt) {
 /* USER CODE BEGIN on_receive_CmdVel */
 /* USER CODE END on_receive_CmdVel */
 }
-__attribute__((weak)) void on_receive_GenericStatus(const Packet_GenericStatus* pkt) {
-/* USER CODE BEGIN on_receive_GenericStatus */
-/* USER CODE END on_receive_GenericStatus */
+__attribute__((weak)) void on_receive_GripperControlGoal(const Packet_GripperControlGoal* pkt) {
+/* USER CODE BEGIN on_receive_GripperControlGoal */
+/* USER CODE END on_receive_GripperControlGoal */
 }
-__attribute__((weak)) void on_receive_WeaponDockFeedback(const Packet_WeaponDockFeedback* pkt) {
-/* USER CODE BEGIN on_receive_WeaponDockFeedback */
-/* USER CODE END on_receive_WeaponDockFeedback */
+__attribute__((weak)) void on_receive_WeaponDockGoal(const Packet_WeaponDockGoal* pkt) {
+/* USER CODE BEGIN on_receive_WeaponDockGoal */
+/* USER CODE END on_receive_WeaponDockGoal */
 }
-__attribute__((weak)) void on_receive_StairPoseGoal(const Packet_StairPoseGoal* pkt) {
-/* USER CODE BEGIN on_receive_StairPoseGoal */
-/* USER CODE END on_receive_StairPoseGoal */
-}
-__attribute__((weak)) void on_receive_StairType(const Packet_StairType* pkt) {
-/* USER CODE BEGIN on_receive_StairType */
-/* USER CODE END on_receive_StairType */
+__attribute__((weak)) void on_receive_MlControlTx(const Packet_MlControlTx* pkt) {
+/* USER CODE BEGIN on_receive_MlControlTx */
+/* USER CODE END on_receive_MlControlTx */
 }
 __attribute__((weak)) void on_receive_MerlinPickGoal(const Packet_MerlinPickGoal* pkt) {
 /* USER CODE BEGIN on_receive_MerlinPickGoal */
@@ -75,6 +82,14 @@ __attribute__((weak)) void on_receive_GridPlaceGoal(const Packet_GridPlaceGoal* 
 __attribute__((weak)) void on_receive_GridAttackGoal(const Packet_GridAttackGoal* pkt) {
 /* USER CODE BEGIN on_receive_GridAttackGoal */
 /* USER CODE END on_receive_GridAttackGoal */
+}
+__attribute__((weak)) void on_receive_GenericStatusTx(const Packet_GenericStatusTx* pkt) {
+/* USER CODE BEGIN on_receive_GenericStatusTx */
+/* USER CODE END on_receive_GenericStatusTx */
+}
+__attribute__((weak)) void on_receive_GenericStatusRx(const Packet_GenericStatusRx* pkt) {
+/* USER CODE BEGIN on_receive_GenericStatusRx */
+/* USER CODE END on_receive_GenericStatusRx */
 }
 
 /* USER CODE BEGIN Code_0 */
@@ -90,7 +105,7 @@ void protocol_fsm_feed(uint8_t byte) {
         case STATE_WAIT_HEADER1:
             if (byte == FRAME_HEADER1) {
                 rx_state = STATE_WAIT_HEADER2;
-                rx_crc = 0; // CRC 重置，校验不包含 Frame Header
+                rx_checksum = 0; // 校验重置，不包含 Frame Header
             }
             break;
             
@@ -98,37 +113,41 @@ void protocol_fsm_feed(uint8_t byte) {
             if (byte == FRAME_HEADER2) {
                 rx_state = STATE_WAIT_ID;
             } else {
-                rx_state = STATE_WAIT_HEADER1; // 重置
+                rx_state = STATE_WAIT_HEADER1;
             }
             break;
             
         case STATE_WAIT_ID:
             rx_id = byte;
-            rx_crc = CRC8_TABLE[0 ^ rx_id]; // 开始计算 CRC，校验包含 ID
+            rx_checksum = checksum_update(0, rx_id); // 校验包含 ID
             rx_state = STATE_WAIT_LEN;
             break;
             
         case STATE_WAIT_LEN:
             rx_data_len = byte;
-            rx_crc = CRC8_TABLE[rx_crc ^ rx_data_len]; // CRC 计算，校验包含 Len
+            rx_checksum = checksum_update(rx_checksum, rx_data_len); // 校验包含 Len
             rx_cnt = 0;
             if (rx_data_len > 0) {
                 rx_state = STATE_WAIT_DATA;
             } else {
-                rx_state = STATE_WAIT_CRC; // 数据长度为0的情况
-            }
-            break;
-            
-        case STATE_WAIT_DATA:
-            rx_buffer[rx_cnt++] = byte;
-            rx_crc = CRC8_TABLE[rx_crc ^ byte]; // CRC 计算，校验包含 Data
-            if (rx_cnt >= rx_data_len) {
                 rx_state = STATE_WAIT_CRC;
             }
             break;
             
+        case STATE_WAIT_DATA:
+            if (rx_cnt < sizeof(rx_buffer)) {
+                rx_buffer[rx_cnt++] = byte;
+                rx_checksum = checksum_update(rx_checksum, byte);
+                if (rx_cnt >= rx_data_len) {
+                    rx_state = STATE_WAIT_CRC;
+                }
+            } else {
+                rx_state = STATE_WAIT_HEADER1;
+            }
+            break;
+            
         case STATE_WAIT_CRC:
-            if (byte == rx_crc) {
+            if (byte == rx_checksum) {
                 // 校验通过，分发数据
                 switch (rx_id) {
                     case PACKET_ID_HEARTBEAT:
@@ -146,24 +165,19 @@ void protocol_fsm_feed(uint8_t byte) {
                             on_receive_CmdVel((Packet_CmdVel*)rx_buffer);
                         }
                         break;
-                    case PACKET_ID_GENERICSTATUS:
-                        if (rx_data_len == sizeof(Packet_GenericStatus)) {
-                            on_receive_GenericStatus((Packet_GenericStatus*)rx_buffer);
+                    case PACKET_ID_GRIPPERCONTROLGOAL:
+                        if (rx_data_len == sizeof(Packet_GripperControlGoal)) {
+                            on_receive_GripperControlGoal((Packet_GripperControlGoal*)rx_buffer);
                         }
                         break;
-                    case PACKET_ID_WEAPONDOCKFEEDBACK:
-                        if (rx_data_len == sizeof(Packet_WeaponDockFeedback)) {
-                            on_receive_WeaponDockFeedback((Packet_WeaponDockFeedback*)rx_buffer);
+                    case PACKET_ID_WEAPONDOCKGOAL:
+                        if (rx_data_len == sizeof(Packet_WeaponDockGoal)) {
+                            on_receive_WeaponDockGoal((Packet_WeaponDockGoal*)rx_buffer);
                         }
                         break;
-                    case PACKET_ID_STAIRPOSEGOAL:
-                        if (rx_data_len == sizeof(Packet_StairPoseGoal)) {
-                            on_receive_StairPoseGoal((Packet_StairPoseGoal*)rx_buffer);
-                        }
-                        break;
-                    case PACKET_ID_STAIRTYPE:
-                        if (rx_data_len == sizeof(Packet_StairType)) {
-                            on_receive_StairType((Packet_StairType*)rx_buffer);
+                    case PACKET_ID_MLCONTROLTX:
+                        if (rx_data_len == sizeof(Packet_MlControlTx)) {
+                            on_receive_MlControlTx((Packet_MlControlTx*)rx_buffer);
                         }
                         break;
                     case PACKET_ID_MERLINPICKGOAL:
@@ -181,12 +195,21 @@ void protocol_fsm_feed(uint8_t byte) {
                             on_receive_GridAttackGoal((Packet_GridAttackGoal*)rx_buffer);
                         }
                         break;
+                    case PACKET_ID_GENERICSTATUSTX:
+                        if (rx_data_len == sizeof(Packet_GenericStatusTx)) {
+                            on_receive_GenericStatusTx((Packet_GenericStatusTx*)rx_buffer);
+                        }
+                        break;
+                    case PACKET_ID_GENERICSTATUSRX:
+                        if (rx_data_len == sizeof(Packet_GenericStatusRx)) {
+                            on_receive_GenericStatusRx((Packet_GenericStatusRx*)rx_buffer);
+                        }
+                        break;
 
                     default:
                         break;
                 }
             }
-            // 无论校验成功与否，都重置状态
             rx_state = STATE_WAIT_HEADER1;
             break;
             
@@ -201,273 +224,190 @@ void protocol_fsm_feed(uint8_t byte) {
 extern void serial_write(const uint8_t* data, uint16_t len);
 
 void send_Heartbeat(const Packet_Heartbeat* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_Heartbeat) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_HEARTBEAT;
     buffer[idx++] = sizeof(Packet_Heartbeat);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_Heartbeat));
     idx += sizeof(Packet_Heartbeat);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
 void send_Handshake(const Packet_Handshake* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_Handshake) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_HANDSHAKE;
     buffer[idx++] = sizeof(Packet_Handshake);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_Handshake));
     idx += sizeof(Packet_Handshake);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
 void send_CmdVel(const Packet_CmdVel* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_CmdVel) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_CMDVEL;
     buffer[idx++] = sizeof(Packet_CmdVel);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_CmdVel));
     idx += sizeof(Packet_CmdVel);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
-void send_GenericStatus(const Packet_GenericStatus* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
-    uint8_t buffer[4 + sizeof(Packet_GenericStatus) + 1];
+void send_GripperControlGoal(const Packet_GripperControlGoal* pkt) {
+    uint8_t buffer[4 + sizeof(Packet_GripperControlGoal) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
-    buffer[idx++] = PACKET_ID_GENERICSTATUS;
-    buffer[idx++] = sizeof(Packet_GenericStatus);
+    buffer[idx++] = PACKET_ID_GRIPPERCONTROLGOAL;
+    buffer[idx++] = sizeof(Packet_GripperControlGoal);
     
-    // 2. Copy Data
-    memcpy(&buffer[idx], pkt, sizeof(Packet_GenericStatus));
-    idx += sizeof(Packet_GenericStatus);
+    memcpy(&buffer[idx], pkt, sizeof(Packet_GripperControlGoal));
+    idx += sizeof(Packet_GripperControlGoal);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
-void send_WeaponDockFeedback(const Packet_WeaponDockFeedback* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
-    uint8_t buffer[4 + sizeof(Packet_WeaponDockFeedback) + 1];
+void send_WeaponDockGoal(const Packet_WeaponDockGoal* pkt) {
+    uint8_t buffer[4 + sizeof(Packet_WeaponDockGoal) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
-    buffer[idx++] = PACKET_ID_WEAPONDOCKFEEDBACK;
-    buffer[idx++] = sizeof(Packet_WeaponDockFeedback);
+    buffer[idx++] = PACKET_ID_WEAPONDOCKGOAL;
+    buffer[idx++] = sizeof(Packet_WeaponDockGoal);
     
-    // 2. Copy Data
-    memcpy(&buffer[idx], pkt, sizeof(Packet_WeaponDockFeedback));
-    idx += sizeof(Packet_WeaponDockFeedback);
+    memcpy(&buffer[idx], pkt, sizeof(Packet_WeaponDockGoal));
+    idx += sizeof(Packet_WeaponDockGoal);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
-void send_StairPoseGoal(const Packet_StairPoseGoal* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
-    uint8_t buffer[4 + sizeof(Packet_StairPoseGoal) + 1];
+void send_MlControlTx(const Packet_MlControlTx* pkt) {
+    uint8_t buffer[4 + sizeof(Packet_MlControlTx) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
-    buffer[idx++] = PACKET_ID_STAIRPOSEGOAL;
-    buffer[idx++] = sizeof(Packet_StairPoseGoal);
+    buffer[idx++] = PACKET_ID_MLCONTROLTX;
+    buffer[idx++] = sizeof(Packet_MlControlTx);
     
-    // 2. Copy Data
-    memcpy(&buffer[idx], pkt, sizeof(Packet_StairPoseGoal));
-    idx += sizeof(Packet_StairPoseGoal);
+    memcpy(&buffer[idx], pkt, sizeof(Packet_MlControlTx));
+    idx += sizeof(Packet_MlControlTx);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
-    serial_write(buffer, idx);
-}
-void send_StairType(const Packet_StairType* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
-    uint8_t buffer[4 + sizeof(Packet_StairType) + 1];
-    uint16_t idx = 0;
-    
-    // 1. Prepare Header
-    buffer[idx++] = FRAME_HEADER1;
-    buffer[idx++] = FRAME_HEADER2;
-    buffer[idx++] = PACKET_ID_STAIRTYPE;
-    buffer[idx++] = sizeof(Packet_StairType);
-    
-    // 2. Copy Data
-    memcpy(&buffer[idx], pkt, sizeof(Packet_StairType));
-    idx += sizeof(Packet_StairType);
-    
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
-    
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
 void send_MerlinPickGoal(const Packet_MerlinPickGoal* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_MerlinPickGoal) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_MERLINPICKGOAL;
     buffer[idx++] = sizeof(Packet_MerlinPickGoal);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_MerlinPickGoal));
     idx += sizeof(Packet_MerlinPickGoal);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
 void send_GridPlaceGoal(const Packet_GridPlaceGoal* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_GridPlaceGoal) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_GRIDPLACEGOAL;
     buffer[idx++] = sizeof(Packet_GridPlaceGoal);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_GridPlaceGoal));
     idx += sizeof(Packet_GridPlaceGoal);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
     serial_write(buffer, idx);
 }
 void send_GridAttackGoal(const Packet_GridAttackGoal* pkt) {
-    // Header(4) + Data(sizeof) + CRC(1)
     uint8_t buffer[4 + sizeof(Packet_GridAttackGoal) + 1];
     uint16_t idx = 0;
     
-    // 1. Prepare Header
     buffer[idx++] = FRAME_HEADER1;
     buffer[idx++] = FRAME_HEADER2;
     buffer[idx++] = PACKET_ID_GRIDATTACKGOAL;
     buffer[idx++] = sizeof(Packet_GridAttackGoal);
     
-    // 2. Copy Data
     memcpy(&buffer[idx], pkt, sizeof(Packet_GridAttackGoal));
     idx += sizeof(Packet_GridAttackGoal);
     
-    // 3. Calculate CRC (ID + Len + Data)
-    // ID is at buffer[2]
-    // Count = 1(ID) + 1(Len) + sizeof(Data)
-    uint8_t crc = 0;
-    for(uint16_t i = 2; i < idx; i++) {
-        crc = CRC8_TABLE[crc ^ buffer[i]];
-    }
-    buffer[idx++] = crc;
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
     
-    // 4. Send Buffer
+    serial_write(buffer, idx);
+}
+void send_GenericStatusTx(const Packet_GenericStatusTx* pkt) {
+    uint8_t buffer[4 + sizeof(Packet_GenericStatusTx) + 1];
+    uint16_t idx = 0;
+    
+    buffer[idx++] = FRAME_HEADER1;
+    buffer[idx++] = FRAME_HEADER2;
+    buffer[idx++] = PACKET_ID_GENERICSTATUSTX;
+    buffer[idx++] = sizeof(Packet_GenericStatusTx);
+    
+    memcpy(&buffer[idx], pkt, sizeof(Packet_GenericStatusTx));
+    idx += sizeof(Packet_GenericStatusTx);
+    
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
+    
+    serial_write(buffer, idx);
+}
+void send_GenericStatusRx(const Packet_GenericStatusRx* pkt) {
+    uint8_t buffer[4 + sizeof(Packet_GenericStatusRx) + 1];
+    uint16_t idx = 0;
+    
+    buffer[idx++] = FRAME_HEADER1;
+    buffer[idx++] = FRAME_HEADER2;
+    buffer[idx++] = PACKET_ID_GENERICSTATUSRX;
+    buffer[idx++] = sizeof(Packet_GenericStatusRx);
+    
+    memcpy(&buffer[idx], pkt, sizeof(Packet_GenericStatusRx));
+    idx += sizeof(Packet_GenericStatusRx);
+    
+    buffer[idx] = calculate_checksum(&buffer[2], idx - 2);
+    idx++;
+    
     serial_write(buffer, idx);
 }
 

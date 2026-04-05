@@ -163,7 +163,7 @@ void DJIMotor(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		DJIMotorControl();
+		DJIMotorControl(); 
     osDelay(1);
   }
   /* USER CODE END DJIMotor */

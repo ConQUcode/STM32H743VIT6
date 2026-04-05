@@ -197,12 +197,18 @@ void serial_write(const uint8_t* data, uint16_t len)
 void on_receive_Handshake(const Packet_Handshake* pkt)
 {
     // 收到握手包处理
+    
+    // 【新增测试代码】直接回显：通过 send_* 函数原路发回去给电脑
+    send_Handshake(pkt);
 }
 
 void on_receive_Heartbeat(const Packet_Heartbeat* pkt)
 {
     // 收到心跳包，更新时间戳
     usb_last_recv_time = HAL_GetTick();
+    
+    // 【新增测试代码】直接回显：通过 send_* 函数原路发回去给电脑
+    send_Heartbeat(pkt);
 }
 
 void on_receive_CmdVel(const Packet_CmdVel* pkt)
@@ -212,5 +218,8 @@ void on_receive_CmdVel(const Packet_CmdVel* pkt)
     usb_chassis_cmd.linear_y = pkt->linear_y;
     usb_chassis_cmd.angular_z = pkt->angular_z;
     usb_last_recv_time = HAL_GetTick();
+
+    // 【新增测试代码】收到什么速度也原路发回
+    send_CmdVel(pkt);
 }
 
