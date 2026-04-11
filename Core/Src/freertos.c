@@ -28,6 +28,7 @@
 #include "Test.h"
 #include "dji_motor.h"
 #include "usb.h"
+#include "remote.h" // 新增导入遥控器库
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -70,6 +71,13 @@ const osThreadAttr_t usb_Task_attributes = {
   .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityHigh,
 };
+/* Definitions for Remot_Task */
+osThreadId_t Remot_TaskHandle;
+const osThreadAttr_t Remot_Task_attributes = {
+  .name = "Remot_Task",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -79,6 +87,7 @@ const osThreadAttr_t usb_Task_attributes = {
 void ChassisControl(void *argument);
 void DJIMotor(void *argument);
 void Usb_Task(void *argument);
+void StartRemote(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -118,6 +127,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of usb_Task */
   usb_TaskHandle = osThreadNew(Usb_Task, NULL, &usb_Task_attributes);
+
+  /* creation of Remot_Task */
+  Remot_TaskHandle = osThreadNew(StartRemote, NULL, &Remot_Task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -186,6 +198,26 @@ void Usb_Task(void *argument)
     osDelay(1);
   }
   /* USER CODE END Usb_Task */
+}
+
+/* USER CODE BEGIN Header_StartRemote */
+/**
+* @brief Function implementing the Remot_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartRemote */
+void StartRemote(void *argument)
+{
+  /* USER CODE BEGIN StartRemote */
+  /* Infinite loop */
+  for(;;)
+  {
+        // 这一步直接内部包含了 osThreadFlagsWait 的无限等待阻塞功能
+        // 在没有接收到遥控器中断发送的信号时，此任务不占用系统任何开销
+        RemoteControlTask();
+  }
+  /* USER CODE END StartRemote */
 }
 
 /* Private application code --------------------------------------------------*/
