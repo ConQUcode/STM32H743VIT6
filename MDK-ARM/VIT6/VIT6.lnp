@@ -3,6 +3,7 @@
 "vit6\main.o"
 "vit6\gpio.o"
 "vit6\freertos.o"
+"vit6\dma.o"
 "vit6\fdcan.o"
 "vit6\spi.o"
 "vit6\usart.o"

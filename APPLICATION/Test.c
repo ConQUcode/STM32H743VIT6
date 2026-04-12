@@ -6,12 +6,18 @@
 #include "remote.h" // 引用遥控器库
 
 /* 当前应用层保留单电机角度环模板,后续扩多电机时直接按此结构增加实例即可 */
+// 引入串口库以测试 TX 数据
+#include "usart.h" 
+
+// 引入串口库以测试 TX 数据
+#include "usart.h" 
+
 #define CHASSIS_DWT_FREQ_MHZ 400U
 #define CHASSIS_MOTOR_RF_TX_ID 2U
 #define CHASSIS_MOTOR_RF_TARGET_ECD 2048.0f
 
 static DJIMotor_Instance *motor_rf;
-static Remote_Instance *test_remote; // 方便调试器直接追踪的遥控器指针
+static Remote_Data_s *test_remote; // 方便调试器直接追踪的遥控器指针，同 motor_rf
 
 extern FDCAN_HandleTypeDef hfdcan1;
 
@@ -29,7 +35,7 @@ void ChassisInit(void)
 {
 	  // 初始化并启动遥控器 DMA接收 
     RemoteControlInit();
-    test_remote = remote_dev; // 将底层暴露的指针赋给当前文件的静态变量，方便在 Watch 窗口实时查看
+    test_remote = remote_data; // 将底层暴露的指针赋给当前文件的静态变量，方便你在 Watch 窗口实时查看
 	 DWT_Init(CHASSIS_DWT_FREQ_MHZ);
     Motor_Init_Config_s chassis_motor_config = {
         .can_init_config.fdcan_handle = &hfdcan1,
@@ -87,12 +93,11 @@ void ChassisInit(void)
 
 void ChassisTask(void)
 {
-//    if (motor_rf == NULL) {
-//        return;
-//    }
+    if (motor_rf == NULL) {
+        return;
+    }
 
-//    ChassisSetMotorRef();
-
+    ChassisSetMotorRef();
 }
 
 /* 兼容旧测试入口,实际逻辑统一走底盘主入口 */

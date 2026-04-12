@@ -8,6 +8,7 @@
 #define REMOTE_FRAME_LEN 18
 #define REMOTE_HEADER    0xAA
 #define REMOTE_FOOTER    0x55
+#define REMOTE_RX_BUF_SIZE 128 // 环形缓冲区尺寸，设为32的整数倍完美适应 STM32H7 D-Cache
 
 /**
  * @brief 遥控器解析后的有效数据结构
@@ -28,7 +29,15 @@ typedef struct {
  */
 typedef struct {
     UART_HandleTypeDef *huart;                    // 绑定的串口句柄
-    uint8_t rx_buf[REMOTE_FRAME_LEN * 2];         // 独立分配的DMA接收缓存
+    
+    // 为了防止 D-Cache 刷新时误伤同结构体内的其它变量，这里强制 rx_buf 本身32字节对齐
+#if defined(__CC_ARM) || (defined(__ARMCC_VERSION) && __ARMCC_VERSION >= 6000000)
+    __attribute__((aligned(32))) uint8_t rx_buf[REMOTE_RX_BUF_SIZE];
+#else
+    uint8_t rx_buf[REMOTE_RX_BUF_SIZE] __attribute__((aligned(32)));
+#endif
+
+    uint16_t read_idx;                            // 软件解包读指针
     Remote_Data_s data;                           // 遥控器各种按钮/摇杆的数据
     uint32_t last_update_time;                    // 记录最后一次成功接收帧的时间戳 (用于掉线检测)
     
@@ -36,6 +45,7 @@ typedef struct {
 } Remote_Instance;
 
 extern Remote_Instance *remote_dev; // 对外暴露的唯实例指针
+extern Remote_Data_s *remote_data; // 对外暴露的数据实例
 
 // ================== 应用层封装接口 ==================
 

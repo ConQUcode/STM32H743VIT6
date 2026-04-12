@@ -68,4 +68,5 @@ vit6/freertos.o: ..\Core\Src\freertos.c \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_core.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \
-  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ctlreq.h
+  C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ctlreq.h \
+  ..\MOUDLE\remote\remote.h

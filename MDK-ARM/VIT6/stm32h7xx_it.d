@@ -42,4 +42,4 @@ vit6/stm32h7xx_it.o: ..\Core\Src\stm32h7xx_it.c ..\Core\Inc\main.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_ll_usb.h \
   C:\Users\11737\STM32Cube\Repository\STM32Cube_FW_H7_V1.12.1\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd_ex.h \
-  ..\Core\Inc\stm32h7xx_it.h
+  ..\Core\Inc\stm32h7xx_it.h ..\MOUDLE\remote\remote.h

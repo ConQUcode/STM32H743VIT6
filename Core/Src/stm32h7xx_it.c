@@ -278,4 +278,8 @@ void OTG_FS_IRQHandler(void)
 
 /* USER CODE BEGIN 1 */
 
+#include "remote.h"
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+    Remote_RxCallback(huart, Size);
+}
 /* USER CODE END 1 */

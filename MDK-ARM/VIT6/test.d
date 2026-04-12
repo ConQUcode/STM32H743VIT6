@@ -48,4 +48,5 @@ vit6/test.o: ..\APPLICATION\Test.c ..\APPLICATION\Test.h \
   ..\MOUDLE\algorithm\controller.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \
-  ..\MOUDLE\motor\motor_def.h ..\MOUDLE\daemon\daemon.h
+  ..\MOUDLE\motor\motor_def.h ..\MOUDLE\daemon\daemon.h \
+  ..\MOUDLE\remote\remote.h ..\Core\Inc\usart.h
