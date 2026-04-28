@@ -13,7 +13,7 @@
 #include "usart.h" 
 
 #define CHASSIS_DWT_FREQ_MHZ 400U
-#define CHASSIS_MOTOR_RF_TX_ID 2U
+#define CHASSIS_MOTOR_RF_TX_ID 1U
 #define CHASSIS_MOTOR_RF_TARGET_ECD 2048.0f
 
 static DJIMotor_Instance *motor_rf;
@@ -38,7 +38,7 @@ void ChassisInit(void)
     test_remote = remote_data; // 将底层暴露的指针赋给当前文件的静态变量，方便你在 Watch 窗口实时查看
 	 DWT_Init(CHASSIS_DWT_FREQ_MHZ);
     Motor_Init_Config_s chassis_motor_config = {
-        .can_init_config.fdcan_handle = &hfdcan1,
+        .can_init_config.fdcan_handle = &hfdcan2,
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 0.12f,
