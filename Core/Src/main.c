@@ -31,6 +31,7 @@
 #include "Test.h"
 #include "Flash.h"
 #include "usb.h"
+#include "BMI088.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,8 +113,10 @@ int main(void)
   MX_FDCAN2_Init();
   MX_SPI1_Init();
   MX_USART6_UART_Init();
+  MX_SPI4_Init();
   /* USER CODE BEGIN 2 */
-   
+
+  g_bmi088_status = BMI088_Init();
   ChassisInit();      // DJIMotorInit() 会调用 FDCANRegister()，自动配置过滤器并启动FDCAN
 	 USB_Init();
   /* USER CODE END 2 */

@@ -31,7 +31,7 @@ static void ChassisSetMotorRef(void)
     DJIMotorSetRef(motor_rf, CHASSIS_MOTOR_RF_TARGET_ECD);
 }
 
-void ChassisInit(void)
+static void TestChassisInit(void)
 {
 	  // 初始化并启动遥控器 DMA接收 
     RemoteControlInit();
@@ -91,7 +91,7 @@ void ChassisInit(void)
 
 }
 
-void ChassisTask(void)
+static void TestChassisTask(void)
 {
     if (motor_rf == NULL) {
         return;
@@ -103,16 +103,16 @@ void ChassisTask(void)
 /* 兼容旧测试入口,实际逻辑统一走底盘主入口 */
 void Test(void)
 {
-    ChassisTask();
+    TestChassisTask();
 }
 
 void Test_Init(void)
 {
-    ChassisInit();
+    TestChassisInit();
 }
 
 /* 保留旧名字,避免外部已有调用点失效 */
 void Test_all_cmd(void)
 {
-    ChassisTask();
+    TestChassisTask();
 }

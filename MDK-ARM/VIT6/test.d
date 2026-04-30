@@ -42,8 +42,9 @@ vit6/test.o: ..\APPLICATION\Test.c ..\APPLICATION\Test.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_ll_usb.h \
   ..\Drivers\STM32H7xx_HAL_Driver\Inc\stm32h7xx_hal_pcd_ex.h \
-  ..\MOUDLE\Flash\Flash.h ..\BSP\bsp_dwt.h ..\MOUDLE\motor\dji_motor.h \
-  ..\BSP\bsp_fdcan.h ..\Core\Inc\fdcan.h ..\Core\Inc\main.h \
+  ..\APPLICATION\chassis.h ..\MOUDLE\BMI088\BMI088.h ..\Core\Inc\spi.h \
+  ..\Core\Inc\main.h ..\MOUDLE\Flash\Flash.h ..\BSP\bsp_dwt.h \
+  ..\MOUDLE\motor\dji_motor.h ..\BSP\bsp_fdcan.h ..\Core\Inc\fdcan.h \
   ..\MOUDLE\algorithm\controller.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \

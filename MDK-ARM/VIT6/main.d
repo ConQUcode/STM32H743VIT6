@@ -60,7 +60,8 @@ vit6/main.o: ..\Core\Src\main.c ..\Core\Inc\main.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdio.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\stdlib.h \
   C:\Keil_v5\ARM\ARMCLANG\Bin\..\include\string.h ..\Core\Inc\gpio.h \
-  ..\APPLICATION\Test.h ..\MOUDLE\Flash\Flash.h ..\MOUDLE\usb\usb.h \
+  ..\APPLICATION\Test.h ..\APPLICATION\chassis.h \
+  ..\MOUDLE\BMI088\BMI088.h ..\MOUDLE\Flash\Flash.h ..\MOUDLE\usb\usb.h \
   ..\USB_DEVICE\App\usbd_cdc_if.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc\usbd_cdc.h \
   ..\Middlewares\ST\STM32_USB_Device_Library\Core\Inc\usbd_ioreq.h \

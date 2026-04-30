@@ -17,6 +17,49 @@ if (-not (Test-Path $resolvedProjectInput)) {
 $portablePathCm4 = "Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F"
 $portablePathRvdsCm7 = "Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM7/r0p1"
 $portablePathGccCm7 = "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1"
+
+function Ensure-FreeRtosGccCm7Port {
+    param(
+        [string]$Destination,
+        [string]$RelativePath
+    )
+
+    $requiredFiles = @("port.c", "portmacro.h")
+    $missingFiles = @($requiredFiles | Where-Object { -not (Test-Path (Join-Path $Destination $_)) })
+    if ($missingFiles.Count -eq 0) {
+        return
+    }
+
+    $sourceRoots = @()
+    if ($env:STM32CUBE_FW_H7_PATH) {
+        $sourceRoots += $env:STM32CUBE_FW_H7_PATH
+    }
+    if ($env:USERPROFILE) {
+        $sourceRoots += (Join-Path $env:USERPROFILE "STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1")
+    }
+
+    foreach ($sourceRoot in $sourceRoots) {
+        $sourcePath = Join-Path $sourceRoot $RelativePath
+        $sourceHasAllFiles = $true
+        foreach ($requiredFile in $requiredFiles) {
+            if (-not (Test-Path (Join-Path $sourcePath $requiredFile))) {
+                $sourceHasAllFiles = $false
+                break
+            }
+        }
+
+        if ($sourceHasAllFiles) {
+            New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+            foreach ($requiredFile in $requiredFiles) {
+                Copy-Item -Force -Path (Join-Path $sourcePath $requiredFile) -Destination (Join-Path $Destination $requiredFile)
+            }
+            Write-Host "Restored FreeRTOS GCC ARM_CM7 port files from $sourcePath"
+            return
+        }
+    }
+
+    throw "FreeRTOS GCC ARM_CM7 port files are missing. Install STM32Cube_FW_H7_V1.12.1 in the default STM32Cube repository, or set STM32CUBE_FW_H7_PATH to the firmware package root."
+}
 $uvprojxLegacyPortPattern = '(?s)\s*<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/RVDS/ARM_CM4F/port\.c</FilePath>.*?</File>'
 $uvoptxLegacyPortPattern = '(?s)\s*<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/RVDS/ARM_CM4F/port\.c</PathWithFileName>.*?</File>'
 $uvprojxAnyPortPattern = '(?s)\s*<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/.+?/port\.c</FilePath>.*?</File>'
@@ -25,9 +68,12 @@ $uvprojxDuplicateGccPattern = '(?s)(\s*<File>\s*<FileName>port\.c</FileName>\s*<
 $uvoptxDuplicateGccPattern = '(?s)(\s*<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</PathWithFileName>.*?</File>)\s*(<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</PathWithFileName>.*?</File>)'
 $projectPath = Resolve-Path $resolvedProjectInput
 $projectDir = Split-Path -Parent $projectPath
+$projectRoot = Split-Path -Parent $projectDir
 $projectName = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
 $filesToPatch = @($projectPath)
 $uvoptxPath = Join-Path $projectDir ($projectName + ".uvoptx")
+
+Ensure-FreeRtosGccCm7Port -Destination (Join-Path $projectRoot $portablePathGccCm7) -RelativePath $portablePathGccCm7
 
 if (Test-Path $uvoptxPath) {
     $filesToPatch += (Resolve-Path $uvoptxPath)
@@ -81,6 +127,12 @@ foreach ($file in $filesToPatch) {
     if ($verify.Contains("Middlewares/Third_Party/FreeRTOS/Source/portable/") -and
         -not $verify.Contains($portablePathGccCm7)) {
         throw "Patch verification failed: GCC ARM_CM7 r0p1 portable path not found in $file"
+    }
+    foreach ($requiredPortFile in @("port.c", "portmacro.h")) {
+        $requiredPortPath = Join-Path (Join-Path $projectRoot $portablePathGccCm7) $requiredPortFile
+        if (-not (Test-Path $requiredPortPath)) {
+            throw "Patch verification failed: missing $requiredPortPath"
+        }
     }
     if ($null -ne $duplicatePattern) {
         $remainingMatches = [System.Text.RegularExpressions.Regex]::Matches($verify, $duplicatePattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)
