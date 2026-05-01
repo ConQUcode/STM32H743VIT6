@@ -14,20 +14,88 @@ if (-not (Test-Path $resolvedProjectInput)) {
     throw "Project file not found: $resolvedProjectInput"
 }
 
+$projectDir = Split-Path -Parent $resolvedProjectInput
+$projectRoot = Split-Path -Parent $projectDir
+$buildDir = Join-Path $projectDir "VIT6"
+
+# Clean stale build artifacts that may contain absolute paths from old configurations.
+# Files ending with _1.* are duplicates left over when the script fixed the port.c entry.
+$stalePatterns = @("*_1.d", "*_1.o", "*_1.crf")
+foreach ($pattern in $stalePatterns) {
+    $staleFiles = Get-ChildItem -Path $buildDir -Filter $pattern -ErrorAction SilentlyContinue
+    foreach ($file in $staleFiles) {
+        Remove-Item -Force $file.FullName -ErrorAction SilentlyContinue
+        Write-Host "Removed stale build artifact: $($file.Name)"
+    }
+}
+
 $portablePathCm4 = "Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F"
 $portablePathRvdsCm7 = "Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM7/r0p1"
 $portablePathGccCm7 = "Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1"
+
+function Ensure-FreeRtosGccCm7Port {
+    param(
+        [string]$Destination,
+        [string]$RelativePath
+    )
+
+    $requiredFiles = @("port.c", "portmacro.h")
+    $missingFiles = @($requiredFiles | Where-Object { -not (Test-Path (Join-Path $Destination $_)) })
+    if ($missingFiles.Count -eq 0) {
+        return
+    }
+
+    $sourceRoots = @()
+    if ($env:STM32CUBE_FW_H7_PATH) {
+        $sourceRoots += $env:STM32CUBE_FW_H7_PATH
+    }
+    if ($env:USERPROFILE) {
+        $sourceRoots += (Join-Path $env:USERPROFILE "STM32Cube/Repository/STM32Cube_FW_H7_V1.12.1")
+    }
+
+    foreach ($sourceRoot in $sourceRoots) {
+        $sourcePath = Join-Path $sourceRoot $RelativePath
+        $sourceHasAllFiles = $true
+        foreach ($requiredFile in $requiredFiles) {
+            if (-not (Test-Path (Join-Path $sourcePath $requiredFile))) {
+                $sourceHasAllFiles = $false
+                break
+            }
+        }
+
+        if ($sourceHasAllFiles) {
+            New-Item -ItemType Directory -Force -Path $Destination | Out-Null
+            foreach ($requiredFile in $requiredFiles) {
+                Copy-Item -Force -Path (Join-Path $sourcePath $requiredFile) -Destination (Join-Path $Destination $requiredFile)
+            }
+            Write-Host "Restored FreeRTOS GCC ARM_CM7 port files from $sourcePath"
+            return
+        }
+    }
+
+    throw "FreeRTOS GCC ARM_CM7 port files are missing. Install STM32Cube_FW_H7_V1.12.1 in the default STM32Cube repository, or set STM32CUBE_FW_H7_PATH to the firmware package root."
+}
 $uvprojxLegacyPortPattern = '(?s)\s*<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/RVDS/ARM_CM4F/port\.c</FilePath>.*?</File>'
 $uvoptxLegacyPortPattern = '(?s)\s*<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/RVDS/ARM_CM4F/port\.c</PathWithFileName>.*?</File>'
 $uvprojxAnyPortPattern = '(?s)\s*<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/.+?/port\.c</FilePath>.*?</File>'
 $uvoptxAnyPortPattern = '(?s)\s*<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/.+?/port\.c</PathWithFileName>.*?</File>'
 $uvprojxDuplicateGccPattern = '(?s)(\s*<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</FilePath>.*?</File>)\s*(<File>\s*<FileName>port\.c</FileName>\s*<FileType>1</FileType>\s*<FilePath>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</FilePath>.*?</File>)'
 $uvoptxDuplicateGccPattern = '(?s)(\s*<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</PathWithFileName>.*?</File>)\s*(<File>\s*<GroupNumber>\d+</GroupNumber>\s*<FileNumber>\d+</FileNumber>\s*<FileType>1</FileType>.*?<PathWithFileName>[^<]*portable/GCC/ARM_CM7/r0p1/port\.c</PathWithFileName>.*?</File>)'
+$uvprojxGccPortEntry = @"
+            <File>
+              <FileName>port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1/port.c</FilePath>
+            </File>
+"@
 $projectPath = Resolve-Path $resolvedProjectInput
 $projectDir = Split-Path -Parent $projectPath
+$projectRoot = Split-Path -Parent $projectDir
 $projectName = [System.IO.Path]::GetFileNameWithoutExtension($projectPath)
 $filesToPatch = @($projectPath)
 $uvoptxPath = Join-Path $projectDir ($projectName + ".uvoptx")
+
+Ensure-FreeRtosGccCm7Port -Destination (Join-Path $projectRoot $portablePathGccCm7) -RelativePath $portablePathGccCm7
 
 if (Test-Path $uvoptxPath) {
     $filesToPatch += (Resolve-Path $uvoptxPath)
@@ -42,6 +110,13 @@ foreach ($file in $filesToPatch) {
     if ($file -like "*.uvprojx") {
         $updated = [System.Text.RegularExpressions.Regex]::Replace($updated, $uvprojxLegacyPortPattern, "", [System.Text.RegularExpressions.RegexOptions]::Singleline)
         $updated = [System.Text.RegularExpressions.Regex]::Replace($updated, $uvprojxDuplicateGccPattern, '$1', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        if (-not $updated.Contains("portable/GCC/ARM_CM7/r0p1/port.c")) {
+            $freeRtosGroupPattern = '(?s)(<Group>\s*<GroupName>Middlewares/FreeRTOS</GroupName>.*?<Files>)(.*?)(\s*</Files>)'
+            $updated = [System.Text.RegularExpressions.Regex]::Replace($updated, $freeRtosGroupPattern, {
+                param($match)
+                $match.Groups[1].Value + $match.Groups[2].Value + "`r`n" + $uvprojxGccPortEntry + $match.Groups[3].Value
+            }, [System.Text.RegularExpressions.RegexOptions]::Singleline)
+        }
     }
     if ($file -like "*.uvoptx") {
         $updated = [System.Text.RegularExpressions.Regex]::Replace($updated, $uvoptxLegacyPortPattern, "", [System.Text.RegularExpressions.RegexOptions]::Singleline)
@@ -78,9 +153,18 @@ foreach ($file in $filesToPatch) {
     if ($verify.Contains("portable/RVDS/ARM_CM4F/port.c")) {
         throw "Patch verification failed: legacy RVDS CM4F port.c entry is still present in $file"
     }
-    if ($verify.Contains("Middlewares/Third_Party/FreeRTOS/Source/portable/") -and
-        -not $verify.Contains($portablePathGccCm7)) {
+    if ($file -like "*.uvprojx" -and -not $verify.Contains($portablePathGccCm7)) {
         throw "Patch verification failed: GCC ARM_CM7 r0p1 portable path not found in $file"
+    }
+    if ($file -like "*.uvoptx" -and
+        ($verify.Contains("portable/RVDS/ARM_CM4F") -or $verify.Contains("portable/RVDS/ARM_CM7"))) {
+        throw "Patch verification failed: non-GCC FreeRTOS port path is still present in $file"
+    }
+    foreach ($requiredPortFile in @("port.c", "portmacro.h")) {
+        $requiredPortPath = Join-Path (Join-Path $projectRoot $portablePathGccCm7) $requiredPortFile
+        if (-not (Test-Path $requiredPortPath)) {
+            throw "Patch verification failed: missing $requiredPortPath"
+        }
     }
     if ($null -ne $duplicatePattern) {
         $remainingMatches = [System.Text.RegularExpressions.Regex]::Matches($verify, $duplicatePattern, [System.Text.RegularExpressions.RegexOptions]::Singleline)

@@ -13,7 +13,7 @@
 #include "usart.h" 
 
 #define CHASSIS_DWT_FREQ_MHZ 400U
-#define CHASSIS_MOTOR_RF_TX_ID 2U
+#define CHASSIS_MOTOR_RF_TX_ID 1U
 #define CHASSIS_MOTOR_RF_TARGET_ECD 2048.0f
 
 static DJIMotor_Instance *motor_rf;
@@ -31,14 +31,14 @@ static void ChassisSetMotorRef(void)
     DJIMotorSetRef(motor_rf, CHASSIS_MOTOR_RF_TARGET_ECD);
 }
 
-void ChassisInit(void)
+static void TestChassisInit(void)
 {
 	  // 初始化并启动遥控器 DMA接收 
     RemoteControlInit();
     test_remote = remote_data; // 将底层暴露的指针赋给当前文件的静态变量，方便你在 Watch 窗口实时查看
 	 DWT_Init(CHASSIS_DWT_FREQ_MHZ);
     Motor_Init_Config_s chassis_motor_config = {
-        .can_init_config.fdcan_handle = &hfdcan1,
+        .can_init_config.fdcan_handle = &hfdcan2,
         .controller_param_init_config = {
             .speed_PID = {
                 .Kp = 0.12f,
@@ -91,7 +91,7 @@ void ChassisInit(void)
 
 }
 
-void ChassisTask(void)
+static void TestChassisTask(void)
 {
     if (motor_rf == NULL) {
         return;
@@ -103,16 +103,16 @@ void ChassisTask(void)
 /* 兼容旧测试入口,实际逻辑统一走底盘主入口 */
 void Test(void)
 {
-    ChassisTask();
+    TestChassisTask();
 }
 
 void Test_Init(void)
 {
-    ChassisInit();
+    TestChassisInit();
 }
 
 /* 保留旧名字,避免外部已有调用点失效 */
 void Test_all_cmd(void)
 {
-    ChassisTask();
+    TestChassisTask();
 }
