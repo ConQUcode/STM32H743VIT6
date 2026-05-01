@@ -1,0 +1,15 @@
+# MDK-ARM build artifacts (contain absolute paths, must not be committed)
+MDK-ARM/VIT6/*.o
+MDK-ARM/VIT6/*.d
+MDK-ARM/VIT6/*.crf
+MDK-ARM/VIT6/*.axf
+MDK-ARM/VIT6/*.hex
+MDK-ARM/VIT6/*.htm
+MDK-ARM/VIT6/*.map
+MDK-ARM/VIT6/*.dep
+MDK-ARM/VIT6/*.lib
+MDK-ARM/VIT6/*.elf
+
+# Keil per-user GUI state (contains absolute paths)
+MDK-ARM/*.uvguix.*
+MDK-ARM/*.guix.*

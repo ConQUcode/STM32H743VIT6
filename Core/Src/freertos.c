@@ -76,6 +76,13 @@ osThreadId_t Remot_TaskHandle;
 const osThreadAttr_t Remot_Task_attributes = {
   .name = "Remot_Task",
   .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for Catch_Task */
+osThreadId_t Catch_TaskHandle;
+const osThreadAttr_t Catch_Task_attributes = {
+  .name = "Catch_Task",
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 
@@ -88,6 +95,7 @@ void ChassisControl(void *argument);
 void DJIMotor(void *argument);
 void Usb_Task(void *argument);
 void StartRemote(void *argument);
+void catch_start(void *argument);
 
 extern void MX_USB_DEVICE_Init(void);
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
@@ -130,6 +138,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of Remot_Task */
   Remot_TaskHandle = osThreadNew(StartRemote, NULL, &Remot_Task_attributes);
+
+  /* creation of Catch_Task */
+  Catch_TaskHandle = osThreadNew(catch_start, NULL, &Catch_Task_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -218,6 +229,24 @@ void StartRemote(void *argument)
         RemoteControlTask();
   }
   /* USER CODE END StartRemote */
+}
+
+/* USER CODE BEGIN Header_catch_start */
+/**
+* @brief Function implementing the Catch_Task thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_catch_start */
+void catch_start(void *argument)
+{
+  /* USER CODE BEGIN catch_start */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END catch_start */
 }
 
 /* Private application code --------------------------------------------------*/
