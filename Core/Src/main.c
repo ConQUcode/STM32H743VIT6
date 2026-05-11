@@ -122,11 +122,11 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   //g_bmi088_status = BMI088_Init();
-  ChassisInit();      // DJIMotorInit() 会调用 FDCANRegister()，自动配置过滤器并启动FDCAN
+  //ChassisInit();      // DJIMotorInit() 会调用 FDCANRegister()，自动配置过滤器并启动FDCAN
 	//Test_Init();
 	 USB_Init();
 	  RemoteControlInit();
-		//CatchInit();
+		CatchInit();
 		Arm_Init();
 		DWT_Init(400);
   /* USER CODE END 2 */

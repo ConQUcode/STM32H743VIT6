@@ -462,12 +462,7 @@ static void DMPackMITFrameWithGains(DMMotor_Instance *motor, float pos, float ve
     FDCAN_Instance *fdcan = motor->motor_fdcan_instance;
     uint16_t pos_u, vel_u, kp_u, kd_u, tor_u;
 
-    /* 位置字段: [0, 2π] → uint16, 归一化后映射 */
-    {
-        float _pn = fmodf(pos, 2.0f * PI);
-        if (_pn < 0.0f) _pn += 2.0f * PI;
-        pos_u = (uint16_t)(_pn / (2.0f * PI) * 65536.0f);
-    }
+    pos_u = DMFloatToUint(pos, -p->p_max, p->p_max, DM_MIT_POS_BITS);
     vel_u = DMFloatToUint(vel, -p->v_max, p->v_max, DM_MIT_VEL_BITS);
     kp_u  = DMFloatToUint(kp, 0.0f, DM_MIT_KP_MAX, DM_MIT_KP_BITS);
     kd_u  = DMFloatToUint(kd, 0.0f, DM_MIT_KD_MAX, DM_MIT_KD_BITS);
@@ -689,7 +684,7 @@ static void DecodeDMMotor(FDCAN_Instance *fdcan_instance)
 
     /* 原始值 → 物理量
      * 位置字段为 [0, 2π] 单圈绝对角度映射, 非 [-p_max, +p_max] */
-    pos_rad  = (float)raw_pos * (2.0f * PI) / 65536.0f;
+    pos_rad  = DMUintToFloat(raw_pos, -p->p_max, p->p_max, DM_MIT_POS_BITS);
     vel_rad_s = DMUintToFloat(raw_vel, -p->v_max, p->v_max, 12);
     tor_nm   = DMUintToFloat(raw_tor, -p->t_max, p->t_max, 12);
 

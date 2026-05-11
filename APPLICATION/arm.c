@@ -16,6 +16,18 @@ static DMMotor_Instance *motor_j1;    /* 大臂 DM4340 */
 static DJIMotor_Instance *motor_j2;   /* 小臂 M3508 */
 static FeiteMotor_Instance *motor_j3; /* 末端舵机, ID=4 */
 
+/* J2 减速比 & 同步带耦合系数:
+ * M3508 内置 1:19 减速器, 编码器测量的是转子角度 (减速前),
+ * total_angle 是转子角度, 需 /19 才得到输出轴角度.
+ * 3508 固定在底座上, 通过同步带驱动小臂相对底座的绝对角:
+ *   j2_关节 = J2_HOME_ANGLE_DEG + motor_rotor_angle / 19 - J2_COUPLING_RATIO * j1
+ *   motor_rotor_ref = (j2_关节 - J2_HOME_ANGLE_DEG + J2_COUPLING_RATIO * j1) * 19
+ * home 时大臂水平向前, 小臂反向水平折叠, 所以小臂相对大臂角为 180°. */
+#define M3508_REDUCTION_RATIO 19.0f
+#define J2_COUPLING_RATIO     1.0f
+#define J2_HOME_ANGLE_DEG     180.0f
+#define J1_MOTOR_SIGN         -1.0f
+
 /* ===================== 状态机 ===================== */
 
 typedef enum {
@@ -64,14 +76,18 @@ static volatile struct {
 /**
  * @brief 读取 3 个关节的当前角度
  * @note  J1 减去上电锁定的零点偏置, 使 home 位置对应 J1=0
+ *        J2 减去 J1 耦合分量, 还原成"小臂相对大臂"的关节角
  */
 static void Arm_ReadJointAngles(Arm_JointAngles_t *angles)
 {
     if (motor_j1 && motor_j1->feedback_initialized)
-        angles->j1 = motor_j1->measure.position_rad * RAD_2_DEGREE - j1_zero_offset_deg;
+        angles->j1 = J1_MOTOR_SIGN *
+                     (motor_j1->measure.position_rad * RAD_2_DEGREE - j1_zero_offset_deg);
 
     if (motor_j2 && motor_j2->feedback_initialized)
-        angles->j2 = motor_j2->measure.total_angle;
+        angles->j2 = J2_HOME_ANGLE_DEG
+                     + motor_j2->measure.total_angle / M3508_REDUCTION_RATIO
+                     - J2_COUPLING_RATIO * angles->j1;
 
     if (motor_j3)
         angles->j3 = motor_j3->measure.angle_deg;
@@ -80,11 +96,14 @@ static void Arm_ReadJointAngles(Arm_JointAngles_t *angles)
 /**
  * @brief 把 3 个关节目标角下发给对应电机
  * @note  DM 的 ref 内部还要加回 J1 零点偏置才是物理角度
+ *        J2 的 motor 命令需要加上 J1 前馈, 抵消同步带耦合
  */
 static void Arm_SetAllRefs(Arm_JointAngles_t angles)
 {
-    DMMotorSetRef(motor_j1, angles.j1 + j1_zero_offset_deg);
-    DJIMotorSetRef(motor_j2, angles.j2);
+    DMMotorSetRef(motor_j1, J1_MOTOR_SIGN * angles.j1 + j1_zero_offset_deg);
+    DJIMotorSetRef(motor_j2, (angles.j2 - J2_HOME_ANGLE_DEG
+                                + J2_COUPLING_RATIO * angles.j1)
+                                * M3508_REDUCTION_RATIO);
 
     int16_t j3_raw = (int16_t)(angles.j3 / FEITE_DEFAULT_RAW_TO_DEG);
     FeiteMotorSetRef(motor_j3, j3_raw);
@@ -108,26 +127,16 @@ static void Arm_Compute2LWrist(Arm_JointAngles_t angles, float *x, float *y)
 
 void Arm_Init(void)
 {
-    /* ---- J1: DM4340 大臂电机 ---- */
+    /* ---- J1: DM4340 大臂电机 (MIT 模式) ---- */
     Motor_Init_Config_s dm_config = {
         .can_init_config = {
             .fdcan_handle = &hfdcan1,
             .tx_id = 1,
             .rx_id = 0x11,
         },
-        .controller_param_init_config = {
-            .angle_PID   = { .Kp = 40.0f, .Ki = 0.05f, .Kd = 0.0f, .MaxOut = 30000.0f },
-            .speed_PID   = { .Kp = 2.0f,  .Ki = 0.01f, .Kd = 0.0f, .MaxOut = 30000.0f },
-            .current_PID = { .Kp = 1.0f,  .Ki = 0.0f,  .Kd = 0.0f, .MaxOut = 30000.0f },
-        },
         .controller_setting_init_config = {
-            .angle_feedback_source  = MOTOR_FEED,
-            .speed_feedback_source  = MOTOR_FEED,
-            .outer_loop_type        = ANGLE_LOOP,
-            .close_loop_type        = CURRENT_LOOP | SPEED_LOOP | ANGLE_LOOP,
             .motor_reverse_flag     = MOTOR_DIRECTION_NORMAL,
             .feedback_reverse_flag  = FEEDBACK_DIRECTION_NORMAL,
-            .feedforward_flag       = FEEDFORWARD_NONE,
             .angle_mode             = MOTOR_ANGLE_MODE_SINGLE_TURN,
         },
         .motor_type = DM4340,
@@ -136,8 +145,8 @@ void Arm_Init(void)
     motor_j1 = DMMotorInit(&dm_config);
     /* 先失能, 等 INIT 阶段锁定 ref=当前位置后再使能, 避免上电朝默认 0° 回零转圈 */
     DMMotorStop(motor_j1);
-    DMMotorSetMITParams(motor_j1, 10.0f, 0.10f);
-    DMMotorSetMITProfile(motor_j1, 0.3f, 0.6f);
+    DMMotorSetMITParams(motor_j1, 40.0f, 0.10f);
+    DMMotorSetMITProfile(motor_j1, 40.0f, 40.0f);
 
     /* ---- J2: M3508 小臂电机 ---- */
     Motor_Init_Config_s j2_config = {
@@ -197,18 +206,17 @@ void Arm_Task(void)
     case ARM_STATE_INIT:
     /* 等 J1 首次反馈, 锁定零点和 home 位姿 */
     /* ---------------------------------------------------------------- */
-        if (motor_j1 && motor_j1->feedback_initialized) {
+        if (motor_j1 && motor_j1->feedback_initialized &&
+            motor_j2 && motor_j2->feedback_initialized) {
             if (!j1_zero_inited) {
                 j1_zero_offset_deg = motor_j1->measure.position_rad * RAD_2_DEGREE;
+                DJIMotorReset(motor_j2);
                 j1_zero_inited = 1;
+                break;
             }
 
-            /* 锁定 home: J1 零点位置定义为 0°, J2/J3 取当前反馈 */
-            current_angles.j1 = 0.0f;
-            if (motor_j2 && motor_j2->feedback_initialized)
-                current_angles.j2 = motor_j2->measure.total_angle;
-            if (motor_j3)
-                current_angles.j3 = motor_j3->measure.angle_deg;
+            /* 用新 offset 重读所有关节: J1=0, J2 自动做同步带耦合修正 */
+            Arm_ReadJointAngles(&current_angles);
 
             home_angles = current_angles;
             Arm_Compute2LWrist(home_angles, &home_wrist_x, &home_wrist_y);
@@ -244,8 +252,8 @@ void Arm_Task(void)
             target_angles = home_angles;
         } else if (sw == 2) {
             Arm_Position_t tgt;
-            tgt.x   = home_wrist_x + 100.0f;
-            tgt.y   = home_wrist_y + 50.0f;
+            tgt.x   = home_wrist_x - 500.0f;
+            tgt.y   = home_wrist_y + 200.0f;
             tgt.phi = 0.0f;   /* 2 连杆 IK 不使用 phi */
 
             arm_debug.wrist_x = tgt.x;

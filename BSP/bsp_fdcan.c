@@ -13,9 +13,9 @@ typedef struct
 
 #define FDCAN_STD_ID_MAX 0x7FFU
 
-// FDCAN实例数组,用于中断回调时查找对应的实例
+// FDCAN接收实例数组,用于中断回调时查找对应的实例
 static FDCAN_Instance *fdcan_instances[FDCAN_MX_REGISTER_CNT] = {NULL};
-static uint8_t idx; // 全局FDCAN实例索引,每次有新的模块注册会自增
+static uint8_t idx; // 全局FDCAN接收实例索引,每次有新的接收模块注册会自增
 
 static FDCAN_Instance *fdcan1_std_registry[FDCAN_STD_ID_MAX + 1U] = {NULL};
 static FDCAN_Instance *fdcan2_std_registry[FDCAN_STD_ID_MAX + 1U] = {NULL};
@@ -312,7 +312,7 @@ static HAL_StatusTypeDef FDCANEnsureBusStarted(FDCAN_Bus_Context_s *bus_ctx)
  * @param config 初始化配置指针
  * @return FDCAN_Instance* FDCAN实例指针,失败返回NULL
  */
-FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config)
+static FDCAN_Instance *FDCANCreateInstance(FDCAN_Init_Config_s *config, uint8_t register_rx)
 {
     FDCAN_Bus_Context_s *bus_ctx;
     FDCAN_Instance *fdcan;
@@ -328,24 +328,26 @@ FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config)
 
     std_registry = FDCANGetStdRegistry(config->fdcan_handle);
 
-    if (idx >= FDCAN_MX_REGISTER_CNT) {
-        return NULL;
-    }
-
-    if (config->rx_id != 0U &&
-        config->rx_id <= FDCAN_STD_ID_MAX &&
-        std_registry != NULL &&
-        std_registry[config->rx_id] != NULL) {
-        return NULL;
-    }
-
-    // 检查是否重复注册（兼容非标准ID或无直达表场景）
-    for (i = 0; i < idx; ++i) {
-        if (config->rx_id != 0U &&
-            fdcan_instances[i] != NULL &&
-            fdcan_instances[i]->fdcan_handle == config->fdcan_handle &&
-            fdcan_instances[i]->rx_id == config->rx_id) {
+    if (register_rx) {
+        if (idx >= FDCAN_MX_REGISTER_CNT) {
             return NULL;
+        }
+
+        if (config->rx_id != 0U &&
+            config->rx_id <= FDCAN_STD_ID_MAX &&
+            std_registry != NULL &&
+            std_registry[config->rx_id] != NULL) {
+            return NULL;
+        }
+
+        // 检查是否重复注册（兼容非标准ID或无直达表场景）
+        for (i = 0; i < idx; ++i) {
+            if (config->rx_id != 0U &&
+                fdcan_instances[i] != NULL &&
+                fdcan_instances[i]->fdcan_handle == config->fdcan_handle &&
+                fdcan_instances[i]->rx_id == config->rx_id) {
+                return NULL;
+            }
         }
     }
 
@@ -369,10 +371,10 @@ FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config)
     // 设置实例参数
     fdcan->fdcan_handle = config->fdcan_handle;
     fdcan->tx_id = config->tx_id;
-    fdcan->rx_id = config->rx_id;
+    fdcan->rx_id = register_rx ? config->rx_id : 0U;
     fdcan->use_canfd = config->use_canfd ? 1U : 0U;
-    fdcan->can_module_callback = config->can_module_callback;
-    fdcan->id = config->id;
+    fdcan->can_module_callback = register_rx ? config->can_module_callback : NULL;
+    fdcan->id = register_rx ? config->id : NULL;
     fdcan->tx_data_length = 8;
 
     FDCANSyncInstanceMode(fdcan);
@@ -382,14 +384,27 @@ FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config)
         return NULL;
     }
 
-    if (fdcan->rx_id != 0U &&
-        fdcan->rx_id <= FDCAN_STD_ID_MAX &&
-        std_registry != NULL) {
-        std_registry[fdcan->rx_id] = fdcan;
+    if (register_rx) {
+        if (fdcan->rx_id != 0U &&
+            fdcan->rx_id <= FDCAN_STD_ID_MAX &&
+            std_registry != NULL) {
+            std_registry[fdcan->rx_id] = fdcan;
+        }
+
+        fdcan_instances[idx++] = fdcan;
     }
 
-    fdcan_instances[idx++] = fdcan;
     return fdcan;
+}
+
+FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config)
+{
+    return FDCANCreateInstance(config, 1U);
+}
+
+FDCAN_Instance *FDCANCreateTxOnly(FDCAN_Init_Config_s *config)
+{
+    return FDCANCreateInstance(config, 0U);
 }
 
 /**

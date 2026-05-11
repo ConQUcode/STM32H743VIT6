@@ -60,8 +60,11 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(FLASH_CS_GPIO_Port, FLASH_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : SPI4_CS1_Pin SPI4_CS2_Pin */
-  GPIO_InitStruct.Pin = SPI4_CS1_Pin|SPI4_CS2_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_7, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : SPI4_CS1_Pin SPI4_CS2_Pin PE7 */
+  GPIO_InitStruct.Pin = SPI4_CS1_Pin|SPI4_CS2_Pin|GPIO_PIN_7;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

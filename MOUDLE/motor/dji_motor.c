@@ -66,7 +66,7 @@ static FDCAN_Instance *RegisterSenderInstance(FDCAN_HandleTypeDef *fdcan_handle,
         .id = NULL,
     };
 
-    FDCAN_Instance *instance = FDCANRegister(&sender_config);
+    FDCAN_Instance *instance = FDCANCreateTxOnly(&sender_config);
     if (instance != NULL) {
         FDCANSetDataLength(instance, 8);
     }

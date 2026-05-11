@@ -14,8 +14,8 @@
 #include <stdint.h>
 #include "fdcan.h"
 
-// 最多能够支持的FDCAN设备数
-#define FDCAN_MX_REGISTER_CNT 16
+// 最多能够支持的FDCAN接收注册实例数
+#define FDCAN_MX_REGISTER_CNT 32
 #define FDCAN_MAX_DATA_LEN    64 // CAN FD最大数据长度
 
 // FDCAN数据长度选项（字节）
@@ -102,6 +102,14 @@ extern volatile FDCAN_Debug_Bus_s g_fdcan2_debug;
  * @return FDCAN_Instance* FDCAN实例指针,失败返回NULL
  */
 FDCAN_Instance *FDCANRegister(FDCAN_Init_Config_s *config);
+
+/**
+ * @brief 创建一个仅发送的FDCAN实例,不占用接收注册表容量
+ *
+ * @param config 初始化配置指针
+ * @return FDCAN_Instance* FDCAN实例指针,失败返回NULL
+ */
+FDCAN_Instance *FDCANCreateTxOnly(FDCAN_Init_Config_s *config);
 
 /**
  * @brief 通过FDCAN实例发送消息
