@@ -34,6 +34,7 @@ static float at_lf, at_rf, at_lb, at_rb;
 
 /* 底盘 IMU 内部数据存储 */
 static ChassisIMUData_s chassis_imu_data;
+static uint8_t chassis_imu_enable_request = 1U;
 
 /* 全局底盘控制命令状态 */
 ChassisCtrlCmd_s chassis_ctrl_cmd = {
@@ -80,7 +81,7 @@ static void ChassisIMU_Init(void)
     chassis_imu_data.online = (g_bmi088_status == BMI088_OK) ? 1U : 0U;
 
     chassis_ctrl_cmd.Chassis_IMU_data = &chassis_imu_data;
-    chassis_ctrl_cmd.imu_enable = chassis_imu_data.online;
+    chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U && chassis_imu_data.online != 0U) ? 1U : 0U;
     chassis_ctrl_cmd.correct_mode = IMU_CORRECT_STRAIGHT;
     chassis_ctrl_cmd.last_yaw = chassis_imu_data.Yaw;
     chassis_ctrl_cmd.target_yaw = chassis_imu_data.Yaw;
@@ -94,28 +95,40 @@ static void ChassisIMU_Init(void)
 static void ChassisIMU_Update(float dt_s)
 {
     BMI088_Status_t status;
+    uint8_t was_online;
 
     if (dt_s <= 0.0f) {
         return;
     }
 
+    was_online = chassis_imu_data.online;
     status = BMI088_ReadAll(&g_bmi088_data);
+    g_bmi088_status = status;
     chassis_imu_data.status = status;
 
     if (status != BMI088_OK) {
         chassis_imu_data.online = 0U;
         chassis_ctrl_cmd.imu_enable = 0U;
+        chassis_ctrl_cmd.offset_w = 0.0f;
         return;
     }
 
     chassis_imu_data.online = 1U;
     chassis_imu_data.GyroZ = g_bmi088_data.gyro_rads.z;
     chassis_imu_data.Yaw = ChassisIMU_NormalizeDeg(chassis_imu_data.Yaw + chassis_imu_data.GyroZ * dt_s * RAD_2_DEGREE);
+    chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U) ? 1U : 0U;
+
+    if (was_online == 0U) {
+        chassis_ctrl_cmd.last_yaw = chassis_imu_data.Yaw;
+        chassis_ctrl_cmd.target_yaw = chassis_imu_data.Yaw;
+        chassis_ctrl_cmd.offset_w = 0.0f;
+    }
 }
 
 void ChassisIMU_Enable(uint8_t enable)
 {
-    chassis_ctrl_cmd.imu_enable = (enable != 0U) && (chassis_imu_data.online != 0U);
+    chassis_imu_enable_request = (enable != 0U) ? 1U : 0U;
+    chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U && chassis_imu_data.online != 0U) ? 1U : 0U;
 }
 
 void ChassisIMU_SetCorrectMode(ChassisIMUCorrectMode_e mode)
@@ -368,12 +381,16 @@ static float UpdateIMUCorrection(float target_vw)
  * @param vx 前后方向线速度指令。
  * @param vy 左右方向线速度指令。
  * @param vw 角速度指令。
- * @note 当前使用三轮舵轮模式：3 号轮为左前轮，1 号轮为左后轮，2 号轮为右后轮，4 号轮为右前轮。
+ * @note 当前使用4轮舵轮模式：3 号轮为左前轮，1 号轮为左后轮，2 号轮为右后轮，4 号轮为右前轮。
  */
 void SteeringWheelKinematics(float vx, float vy, float vw)
 {
-    float chassis_vx = vx;
-    float chassis_vy = vy;
+    /*
+     * Treat the ID3/ID4 side as the chassis front.
+     * Original solver axes: +X is ID4/ID1 side, -Y is ID3/ID4 side.
+     */
+    float chassis_vx = vy;
+    float chassis_vy = -vx;
     float chassis_vw = vw;
     static uint8_t first_run_kinematics = 1;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;

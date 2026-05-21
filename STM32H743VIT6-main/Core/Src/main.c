@@ -121,7 +121,7 @@ int main(void)
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
-  //g_bmi088_status = BMI088_Init();
+  g_bmi088_status = BMI088_Init();
 		DWT_Init(400);
   ChassisInit();      // DJIMotorInit() 会调用 FDCANRegister()，自动配置过滤器并启动FDCAN
 	//Test_Init();
