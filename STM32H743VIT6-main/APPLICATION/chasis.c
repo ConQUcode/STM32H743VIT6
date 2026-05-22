@@ -14,6 +14,10 @@
 #include <math.h>
 
 #define CHASSIS_ID1_M3508_SPEED_DEADBAND 300.0f
+#define CHASSIS_ID2_M3508_SPEED_DEADBAND 300.0f
+#define CHASSIS_ID3_M3508_SPEED_DEADBAND 300.0f
+#define CHASSIS_ID4_M3508_SPEED_DEADBAND 300.0f
+#define CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE 1U
 #define CHASSIS_STEERING_STARTUP_HOLD_TICKS 50U
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
 #define CHASSIS_STEERING_SPEED_MAX_OUT 6000.0f
@@ -158,6 +162,7 @@ static float ChassisSteeringAngle(DJIMotor_Instance *motor)
 
 static uint8_t ChassisSteeringId3StartupGuard(void)
 {
+#if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
     static uint8_t hold_ticks = 0U;
 
     if (motor_steering_lb == NULL || motor_steering_lb->feedback_initialized == 0U) {
@@ -176,6 +181,24 @@ static uint8_t ChassisSteeringId3StartupGuard(void)
     }
 
     return 1U;
+#else
+    return 1U;
+#endif
+}
+
+static void ChassisSetDriveMotorRef(DJIMotor_Instance *motor, float speed, float deadband)
+{
+    if (motor == NULL) {
+        return;
+    }
+
+    if (fabsf(speed) < deadband) {
+        DJIMotorSetRef(motor, 0.0f);
+        DJIMotorStop(motor);
+    } else {
+        DJIMotorEnable(motor);
+        DJIMotorSetRef(motor, speed);
+    }
 }
 
 void ChassisInit()
@@ -212,6 +235,7 @@ void ChassisInit()
 
     chassis_motor_config.can_init_config.tx_id                             = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID4_M3508_SPEED_DEADBAND;
        motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 1;
@@ -222,11 +246,13 @@ void ChassisInit()
 
     chassis_motor_config.can_init_config.tx_id                             = 3;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID3_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 2;
             chassis_motor_config.controller_param_init_config.speed_PID.Kp         =2;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID2_M3508_SPEED_DEADBAND;
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
 
@@ -235,8 +261,8 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 8,
-                .Ki                = 0.2,
+                .Kp                = 10,
+                .Ki                = 0.3,
                 .Kd                = 0,
                 .CoefA             = 5,
                 .CoefB             = 0.1,
@@ -279,9 +305,11 @@ void ChassisInit()
     chassis_motor_steering_config.controller_setting_init_config.output_reverse_flag = MOTOR_DIRECTION_NORMAL;
     chassis_motor_steering_config.can_init_config.tx_id = 2;
     motor_steering_rb                                   = DJIMotorInit(&chassis_motor_steering_config);
+#if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
     if (motor_steering_lb != NULL) {
         DJIMotorStop(motor_steering_lb);
     }
+#endif
 
             PID_Init_Config_s chassis_follow_pid_conf = {
         .Kp                = 150, // 6
@@ -385,12 +413,8 @@ static float UpdateIMUCorrection(float target_vw)
  */
 void SteeringWheelKinematics(float vx, float vy, float vw)
 {
-    /*
-     * Treat the ID3/ID4 side as the chassis front.
-     * Original solver axes: +X is ID4/ID1 side, -Y is ID3/ID4 side.
-     */
-    float chassis_vx = vy;
-    float chassis_vy = -vx;
+    float chassis_vx = vx;
+    float chassis_vy = vy;
     float chassis_vw = vw;
     static uint8_t first_run_kinematics = 1;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
@@ -459,25 +483,15 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     DJIMotorSetRef(motor_steering_rb, at_rb);
 
     if (chassis_vw == 0.0f && chassis_vx == 0.0f && chassis_vy == 0.0f) {
-        DJIMotorSetRef(motor_lf, 0);
-        DJIMotorSetRef(motor_rf, 0);
-        DJIMotorStop(motor_rf);
-        DJIMotorSetRef(motor_lb, 0);
-        DJIMotorSetRef(motor_rb, 0);
+        ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
     } else {
-        DJIMotorSetRef(motor_lf, vt_lf);
-
-        if (fabsf(vt_rf) < CHASSIS_ID1_M3508_SPEED_DEADBAND) {
-            vt_rf = 0.0f;
-            DJIMotorSetRef(motor_rf, 0);
-            DJIMotorStop(motor_rf);
-        } else {
-            DJIMotorEnable(motor_rf);
-            DJIMotorSetRef(motor_rf, vt_rf);
-        }
-
-        DJIMotorSetRef(motor_lb, vt_lb);
-        DJIMotorSetRef(motor_rb, vt_rb);
+        ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rb, vt_rb, CHASSIS_ID2_M3508_SPEED_DEADBAND);
     }
 }
 void ChassisTask(void)
@@ -487,11 +501,11 @@ void ChassisTask(void)
     ChassisIMU_Update(0.001f);
 
     if (remote_data != NULL) {
-        // 左摇杆 Y轴 → 前后线速度 vx
-        vx = (float)remote_data->rocker_l1 / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
-        // 左摇杆 X轴 → 左右线速度 vy
-        // 这里反相，修正底盘左右方向与摇杆输入相反的问题
-        vy = -(float)remote_data->rocker_l_ / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        // Left stick X is mounted as the forward/back channel on this remote.
+        // Pushing forward makes rocker_l_ negative, so map it to positive vx.
+        vx = -(float)remote_data->rocker_l_ / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        // Left stick Y is used as the lateral channel.
+        vy = (float)remote_data->rocker_l1 / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
         // 右摇杆 X轴 → 旋转角速度 vw
         vw = 0;
 

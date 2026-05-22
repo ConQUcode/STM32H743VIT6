@@ -69,7 +69,7 @@
 #define GM6020_RPM_TO_ANGULAR_VEL(rpm)    ((rpm) / ANGULAR_VELOCITY_TO_GM6020_RPM)
 
 
-#define STEERING_CHASSIS_ALIGN_ECD_LF   7696// 舵机 A 4号编码值（减小往逆时针）
+#define STEERING_CHASSIS_ALIGN_ECD_LF   7896// 舵机 A 4号编码值（减小往逆时针）
 #define STEERING_CHASSIS_ALIGN_ECD_LB   5796 // 舵机 B 3号编码值
 #define STEERING_CHASSIS_ALIGN_ECD_RF   6800// 舵机 C 1号编码值
 #define STEERING_CHASSIS_ALIGN_ECD_RB   8142 // 舵机 D 2号编码值
