@@ -328,11 +328,6 @@
         <Ww>
           <count>1</count>
           <WinNumber>2</WinNumber>
-          <ItemText>Chassis_IMU_data</ItemText>
-        </Ww>
-        <Ww>
-          <count>2</count>
-          <WinNumber>2</WinNumber>
           <ItemText>chassis_ctrl_cmd,0x0A</ItemText>
         </Ww>
       </WatchWindow2>

@@ -22,10 +22,17 @@
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
 #define CHASSIS_STEERING_SPEED_MAX_OUT 6000.0f
 #define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_LF (-45.0f)
+#define CHASSIS_IDLE_SPIN_READY_OFFSET_LF (45.0f)
 #define CHASSIS_IDLE_SPIN_READY_OFFSET_RF (-45.0f)
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_LB (-135.0f)
+#define CHASSIS_IDLE_SPIN_READY_OFFSET_LB (-45.0f)
 #define CHASSIS_IDLE_SPIN_READY_OFFSET_RB 45.0f
+#define CHASSIS_IMU_DT_FALLBACK_S 0.001f
+#define CHASSIS_IMU_DT_MAX_S 0.05f
+#define CHASSIS_IMU_YAW_AXIS_X 0U
+#define CHASSIS_IMU_YAW_AXIS_Y 1U
+#define CHASSIS_IMU_YAW_AXIS_Z 2U
+#define CHASSIS_IMU_YAW_AXIS CHASSIS_IMU_YAW_AXIS_Z
+#define CHASSIS_IMU_YAW_SIGN 1.0f
 
 /* 底盘行走电机实例（3508 电机）:  */
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb;
@@ -78,6 +85,21 @@ static float ChassisIMU_DiffDeg(float target_deg, float current_deg)
     return ChassisIMU_NormalizeDeg(target_deg - current_deg);
 }
 
+static float ChassisIMU_SelectYawGyro(void)
+{
+    float yaw_gyro = g_bmi088_data.gyro_rads.z;
+
+#if CHASSIS_IMU_YAW_AXIS == CHASSIS_IMU_YAW_AXIS_X
+    yaw_gyro = g_bmi088_data.gyro_rads.x;
+#elif CHASSIS_IMU_YAW_AXIS == CHASSIS_IMU_YAW_AXIS_Y
+    yaw_gyro = g_bmi088_data.gyro_rads.y;
+#else
+    yaw_gyro = g_bmi088_data.gyro_rads.z;
+#endif
+
+    return yaw_gyro * CHASSIS_IMU_YAW_SIGN;
+}
+
 /**
  * @brief 底盘 IMU 数据及其控制结构体初始化
  */
@@ -122,7 +144,7 @@ static void ChassisIMU_Update(float dt_s)
     }
 
     chassis_imu_data.online = 1U;
-    chassis_imu_data.GyroZ = g_bmi088_data.gyro_rads.z;
+    chassis_imu_data.GyroZ = ChassisIMU_SelectYawGyro();
     chassis_imu_data.Yaw = ChassisIMU_NormalizeDeg(chassis_imu_data.Yaw + chassis_imu_data.GyroZ * dt_s * RAD_2_DEGREE);
     chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U) ? 1U : 0U;
 
@@ -169,18 +191,18 @@ static uint8_t ChassisSteeringId3StartupGuard(void)
 #if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
     static uint8_t hold_ticks = 0U;
 
-    if (motor_steering_lb == NULL || motor_steering_lb->feedback_initialized == 0U) {
+    if (motor_steering_lf == NULL || motor_steering_lf->feedback_initialized == 0U) {
         hold_ticks = 0U;
-        if (motor_steering_lb != NULL) {
-            DJIMotorStop(motor_steering_lb);
+        if (motor_steering_lf != NULL) {
+            DJIMotorStop(motor_steering_lf);
         }
         return 0U;
     }
 
     if (hold_ticks < CHASSIS_STEERING_STARTUP_HOLD_TICKS) {
         hold_ticks++;
-        DJIMotorSetRef(motor_steering_lb, motor_steering_lb->measure.total_angle);
-        DJIMotorEnable(motor_steering_lb);
+        DJIMotorSetRef(motor_steering_lf, motor_steering_lf->measure.total_angle);
+        DJIMotorEnable(motor_steering_lf);
         return 0U;
     }
 
@@ -237,20 +259,19 @@ void ChassisInit()
         .motor_type = M3508,
     };
 
+    chassis_motor_config.can_init_config.tx_id                             = 3;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID3_M3508_SPEED_DEADBAND;
+    motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
+
     chassis_motor_config.can_init_config.tx_id                             = 4;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID4_M3508_SPEED_DEADBAND;
-       motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
+    motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 1;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID1_M3508_SPEED_DEADBAND;
-    motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
-    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = 0.0f;
-
-    chassis_motor_config.can_init_config.tx_id                             = 3;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
-    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID3_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 2;
@@ -297,21 +318,21 @@ void ChassisInit()
         },
         .motor_type = GM6020,
     };
-    chassis_motor_steering_config.can_init_config.tx_id = 4;
-    motor_steering_lf                                   = DJIMotorInit(&chassis_motor_steering_config);
-    chassis_motor_steering_config.can_init_config.tx_id = 1;
-    motor_steering_rf                                   = DJIMotorInit(&chassis_motor_steering_config);
     chassis_motor_steering_config.can_init_config.tx_id = 3;
 #if CHASSIS_GM6020_ID3_OUTPUT_REVERSE
     chassis_motor_steering_config.controller_setting_init_config.output_reverse_flag = MOTOR_DIRECTION_REVERSE;
 #endif
-    motor_steering_lb                                   = DJIMotorInit(&chassis_motor_steering_config);
+    motor_steering_lf                                   = DJIMotorInit(&chassis_motor_steering_config);
     chassis_motor_steering_config.controller_setting_init_config.output_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    chassis_motor_steering_config.can_init_config.tx_id = 4;
+    motor_steering_rf                                   = DJIMotorInit(&chassis_motor_steering_config);
+    chassis_motor_steering_config.can_init_config.tx_id = 1;
+    motor_steering_lb                                   = DJIMotorInit(&chassis_motor_steering_config);
     chassis_motor_steering_config.can_init_config.tx_id = 2;
     motor_steering_rb                                   = DJIMotorInit(&chassis_motor_steering_config);
 #if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
-    if (motor_steering_lb != NULL) {
-        DJIMotorStop(motor_steering_lb);
+    if (motor_steering_lf != NULL) {
+        DJIMotorStop(motor_steering_lf);
     }
 #endif
 
@@ -490,33 +511,38 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         MinmizeRotation(&at_rb, &at_rb_last, &vt_rb);
     }
 
-    DJIMotorSetRef(motor_steering_lf, at_lf);
-    DJIMotorSetRef(motor_steering_rf, at_rf);
     if (id3_ready) {
-        DJIMotorEnable(motor_steering_lb);
-        DJIMotorSetRef(motor_steering_lb, at_lb);
+        DJIMotorEnable(motor_steering_lf);
+        DJIMotorSetRef(motor_steering_lf, at_lf);
     } else {
-        vt_lb = 0.0f;
+        vt_lf = 0.0f;
     }
+    DJIMotorSetRef(motor_steering_rf, at_rf);
+    DJIMotorSetRef(motor_steering_lb, at_lb);
     DJIMotorSetRef(motor_steering_rb, at_rb);
 
     if (idle_spin_ready) {
-        ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
         ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
     } else {
-        ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID1_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+        ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID1_M3508_SPEED_DEADBAND);
         ChassisSetDriveMotorRef(motor_rb, vt_rb, CHASSIS_ID2_M3508_SPEED_DEADBAND);
     }
 }
 void ChassisTask(void)
 {
     float vx = 0.0f, vy = 0.0f, vw = 0.0f;
+    static uint32_t imu_update_cnt = 0U;
+    float imu_dt_s = DWT_GetDeltaT(&imu_update_cnt);
 
-    ChassisIMU_Update(0.001f);
+    if ((imu_dt_s <= 0.0f) || (imu_dt_s > CHASSIS_IMU_DT_MAX_S)) {
+        imu_dt_s = CHASSIS_IMU_DT_FALLBACK_S;
+    }
+    ChassisIMU_Update(imu_dt_s);
 
     if (remote_data != NULL) {
         // Left stick X is mounted as the forward/back channel on this remote.
