@@ -92,7 +92,7 @@
 
 /* 遥控器摇杆映射参数 */
 #define REMOTE_STICK_RANGE    660.0f   // 摇杆最大行程值(±660为DJI DT7典型值)
-#define REMOTE_MAX_LINEAR     15000.0f  // 最大线速度 (deg/s, 约333 RPM)
+#define REMOTE_MAX_LINEAR     23000.0f  // 最大线速度 (deg/s, 约333 RPM)
 #define REMOTE_MAX_ANGULAR    15000.0f  // 最大角速度 (deg/s)
 #define REMOTE_DEADBAND       50.0f    // 摇杆死区 (deg/s)
 

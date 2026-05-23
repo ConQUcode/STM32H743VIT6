@@ -24,6 +24,8 @@
 #define CHASSIS_STEERING_SPEED_MAX_OUT 9000.0f
 #define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f
+#define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f
+#define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f
 #define CHASSIS_IMU_DT_FALLBACK_S 0.001f
 #define CHASSIS_IMU_DT_MAX_S 0.05f
 #define CHASSIS_IMU_YAW_AXIS_X 0U
@@ -91,6 +93,18 @@ static float ChassisIMU_NormalizeDeg(float angle_deg)
 static float ChassisIMU_DiffDeg(float target_deg, float current_deg)
 {
     return ChassisIMU_NormalizeDeg(target_deg - current_deg);
+}
+
+static void ChassisIMU_ClearCorrectionPID(void)
+{
+    chassis_follow_pid.Pout = 0.0f;
+    chassis_follow_pid.Iout = 0.0f;
+    chassis_follow_pid.Dout = 0.0f;
+    chassis_follow_pid.ITerm = 0.0f;
+    chassis_follow_pid.Output = 0.0f;
+    chassis_follow_pid.Last_Output = 0.0f;
+    chassis_follow_pid.Last_Dout = 0.0f;
+    chassis_follow_pid.Last_ITerm = 0.0f;
 }
 
 static float ChassisIMU_SelectYawGyroRaw(const BMI088_Data_t *data)
@@ -389,7 +403,7 @@ void ChassisInit()
     motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 1;
-	       chassis_motor_config.controller_param_init_config.speed_PID.Kp         =1.15;
+	       chassis_motor_config.controller_param_init_config.speed_PID.Kp         =1.1;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID1_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
@@ -549,6 +563,17 @@ static float UpdateIMUCorrection(float target_vw)
     return offset;
 }
 
+static float ChassisIMU_GetCorrectionYawError(void)
+{
+    float current_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
+
+    if (chassis_ctrl_cmd.correct_mode == IMU_CORRECT_ROTATION) {
+        return ChassisIMU_DiffDeg(chassis_ctrl_cmd.target_yaw, current_yaw);
+    }
+
+    return ChassisIMU_DiffDeg(chassis_ctrl_cmd.last_yaw, current_yaw);
+}
+
 /**
  * @brief 舵轮底盘运动学解算。
  * @param vx 前后方向线速度指令。
@@ -562,11 +587,13 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     float chassis_vy = vy;
     float chassis_vw = vw;
     static uint8_t first_run_kinematics = 1;
+    static uint8_t idle_yaw_correction_hold = 0U;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
     float at_lf_last = 0.0f, at_rf_last = 0.0f, at_lb_last = 0.0f, at_rb_last = 0.0f;
     uint8_t id3_ready = 0U;
     uint8_t manual_idle = ((vx == 0.0f) && (vy == 0.0f) && (vw == 0.0f)) ? 1U : 0U;
     uint8_t stop_align_ready = 0U;
+    float idle_yaw_error = 0.0f;
 
     id3_ready = ChassisSteeringId3StartupGuard();
 
@@ -580,8 +607,29 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         first_run_kinematics = 0;
     }
 
-    chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
-    chassis_vw = vw + chassis_ctrl_cmd.offset_w;
+    if (manual_idle != 0U) {
+        idle_yaw_error = fabsf(ChassisIMU_GetCorrectionYawError());
+
+        if (idle_yaw_correction_hold != 0U) {
+            if (idle_yaw_error > CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG) {
+                idle_yaw_correction_hold = 0U;
+            }
+        } else if (idle_yaw_error < CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG) {
+            idle_yaw_correction_hold = 1U;
+            ChassisIMU_ClearCorrectionPID();
+        }
+    } else {
+        idle_yaw_correction_hold = 0U;
+    }
+
+    if (idle_yaw_correction_hold != 0U) {
+        chassis_ctrl_cmd.offset_w = 0.0f;
+        chassis_vw = 0.0f;
+    } else {
+        chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
+        chassis_vw = vw + chassis_ctrl_cmd.offset_w;
+    }
+
     stop_align_ready = (manual_idle != 0U && fabsf(chassis_vw) < CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND) ? 1U : 0U;
     if (stop_align_ready != 0U) {
         chassis_ctrl_cmd.offset_w = 0.0f;
