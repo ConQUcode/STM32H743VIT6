@@ -14,19 +14,16 @@
 #include "robot_def.h"
 #include <math.h>
 
-#define CHASSIS_ID1_M3508_SPEED_DEADBAND 300.0f
-#define CHASSIS_ID2_M3508_SPEED_DEADBAND 300.0f
-#define CHASSIS_ID3_M3508_SPEED_DEADBAND 300.0f
-#define CHASSIS_ID4_M3508_SPEED_DEADBAND 300.0f
+#define CHASSIS_ID1_M3508_SPEED_DEADBAND 80.0f
+#define CHASSIS_ID2_M3508_SPEED_DEADBAND 80.0f
+#define CHASSIS_ID3_M3508_SPEED_DEADBAND 80.0f
+#define CHASSIS_ID4_M3508_SPEED_DEADBAND 80.0f
 #define CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE 1U
 #define CHASSIS_STEERING_STARTUP_HOLD_TICKS 50U
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
-#define CHASSIS_STEERING_SPEED_MAX_OUT 6000.0f
+#define CHASSIS_STEERING_SPEED_MAX_OUT 9000.0f
 #define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_LF (45.0f)
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_RF (-45.0f)
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_LB (-45.0f)
-#define CHASSIS_IDLE_SPIN_READY_OFFSET_RB 45.0f
+#define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f
 #define CHASSIS_IMU_DT_FALLBACK_S 0.001f
 #define CHASSIS_IMU_DT_MAX_S 0.05f
 #define CHASSIS_IMU_YAW_AXIS_X 0U
@@ -356,8 +353,8 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 4, // 3
-                .Ki            = 0.2, // 0.5
+                .Kp            = 1.7, // 3
+                .Ki            = 0.27, // 0.5
                 .Kd            = 0.005,   // 0
                 .IntegralLimit = 3000,//5000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
@@ -392,6 +389,7 @@ void ChassisInit()
     motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 1;
+	       chassis_motor_config.controller_param_init_config.speed_PID.Kp         =1.15;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID1_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
@@ -408,8 +406,8 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 10,
-                .Ki                = 0.3,
+                .Kp                = 13,
+                .Ki                = 0.34,
                 .Kd                = 0,
                 .CoefA             = 5,
                 .CoefB             = 0.1,
@@ -420,7 +418,7 @@ void ChassisInit()
                 .DeadBand          = 1,
             },
             .speed_PID = {
-                .Kp            = 40,
+                .Kp            = 50,
                 .Ki            = 3,
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
@@ -567,7 +565,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
     float at_lf_last = 0.0f, at_rf_last = 0.0f, at_lb_last = 0.0f, at_rb_last = 0.0f;
     uint8_t id3_ready = 0U;
-    uint8_t idle_spin_ready = ((vx == 0.0f) && (vy == 0.0f) && (vw == 0.0f)) ? 1U : 0U;
+    uint8_t manual_idle = ((vx == 0.0f) && (vy == 0.0f) && (vw == 0.0f)) ? 1U : 0U;
+    uint8_t stop_align_ready = 0U;
 
     id3_ready = ChassisSteeringId3StartupGuard();
 
@@ -583,38 +582,30 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
 
     chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
     chassis_vw = vw + chassis_ctrl_cmd.offset_w;
-
-    if (idle_spin_ready) {
+    stop_align_ready = (manual_idle != 0U && fabsf(chassis_vw) < CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND) ? 1U : 0U;
+    if (stop_align_ready != 0U) {
         chassis_ctrl_cmd.offset_w = 0.0f;
         chassis_vw = 0.0f;
-        vt_lf = 0.0f;
-        vt_rf = 0.0f;
-        vt_lb = 0.0f;
-        vt_rb = 0.0f;
-        offset_lf = CHASSIS_IDLE_SPIN_READY_OFFSET_LF;
-        offset_rf = CHASSIS_IDLE_SPIN_READY_OFFSET_RF;
-        offset_lb = CHASSIS_IDLE_SPIN_READY_OFFSET_LB;
-        offset_rb = CHASSIS_IDLE_SPIN_READY_OFFSET_RB;
-    } else {
-        float w = chassis_vw;
-        float temp_x = chassis_vx - w;
-        float temp_y = chassis_vy - w;
-
-        vt_lf = sqrtf(temp_x * temp_x + temp_y * temp_y);
-        offset_lf = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
-
-        temp_y = chassis_vy + w;
-        vt_lb = sqrtf(temp_x * temp_x + temp_y * temp_y);
-        offset_lb = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
-
-        temp_x = chassis_vx + w;
-        vt_rb = sqrtf(temp_x * temp_x + temp_y * temp_y);
-        offset_rb = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
-
-        temp_y = chassis_vy - w;
-        vt_rf = sqrtf(temp_x * temp_x + temp_y * temp_y);
-        offset_rf = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
     }
+
+    float w = chassis_vw;
+    float temp_x = chassis_vx - w;
+    float temp_y = chassis_vy - w;
+
+    vt_lf = sqrtf(temp_x * temp_x + temp_y * temp_y);
+    offset_lf = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
+
+    temp_y = chassis_vy + w;
+    vt_lb = sqrtf(temp_x * temp_x + temp_y * temp_y);
+    offset_lb = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
+
+    temp_x = chassis_vx + w;
+    vt_rb = sqrtf(temp_x * temp_x + temp_y * temp_y);
+    offset_rb = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
+
+    temp_y = chassis_vy - w;
+    vt_rf = sqrtf(temp_x * temp_x + temp_y * temp_y);
+    offset_rf = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
 
     at_lf = STEERING_CHASSIS_ALIGN_ANGLE_LF + offset_lf;
     at_rf = STEERING_CHASSIS_ALIGN_ANGLE_RF + offset_rf;
@@ -626,7 +617,7 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     ANGLE_LIMIT_360_TO_180_ABS(at_lb);
     ANGLE_LIMIT_360_TO_180_ABS(at_rb);
 
-    if (!idle_spin_ready) {
+    if (stop_align_ready == 0U) {
         MinmizeRotation(&at_lf, &at_lf_last, &vt_lf);
         MinmizeRotation(&at_rf, &at_rf_last, &vt_rf);
         MinmizeRotation(&at_lb, &at_lb_last, &vt_lb);
@@ -643,17 +634,10 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     DJIMotorSetRef(motor_steering_lb, at_lb);
     DJIMotorSetRef(motor_steering_rb, at_rb);
 
-    if (idle_spin_ready) {
-        ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
-    } else {
-        ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID3_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID1_M3508_SPEED_DEADBAND);
-        ChassisSetDriveMotorRef(motor_rb, vt_rb, CHASSIS_ID2_M3508_SPEED_DEADBAND);
-    }
+    ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rb, vt_rb, CHASSIS_ID2_M3508_SPEED_DEADBAND);
 }
 void ChassisTask(void)
 {
