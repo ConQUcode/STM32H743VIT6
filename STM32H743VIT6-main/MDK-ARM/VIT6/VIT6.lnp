@@ -18,6 +18,7 @@
 "vit6\dji_motor.o"
 "vit6\flash.o"
 "vit6\bmi088.o"
+"vit6\attitude_ekf.o"
 "vit6\usb.o"
 "vit6\protocol.o"
 "vit6\remote.o"

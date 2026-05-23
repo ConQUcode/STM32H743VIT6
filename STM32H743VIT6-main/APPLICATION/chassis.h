@@ -28,6 +28,8 @@ typedef enum
 typedef struct
 {
     float Yaw;               // 航向角 (Degree)
+    float Pitch;             // 俯仰角 (Degree)
+    float Roll;              // 横滚角 (Degree)
     float GyroZ;             // 角速度 (rad/s)
     uint8_t online;          // 传感器在线状态
     BMI088_Status_t status;  // 传感器硬件状态

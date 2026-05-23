@@ -15,7 +15,7 @@
 #define BMI088_ACC_SOFTRESET_CMD     0xB6U
 #define BMI088_ACC_PWR_ACTIVE        0x00U
 #define BMI088_ACC_ENABLE            0x04U
-#define BMI088_ACC_CONF_DEFAULT      0xA8U
+#define BMI088_ACC_CONF_800HZ_NORMAL 0xABU
 #define BMI088_ACC_RANGE_6G          0x01U
 
 #define BMI088_GYRO_CHIP_ID_REG      0x00U
@@ -28,10 +28,11 @@
 #define BMI088_GYRO_SOFTRESET_CMD    0xB6U
 #define BMI088_GYRO_NORMAL_MODE      0x00U
 #define BMI088_GYRO_RANGE_2000DPS    0x00U
-#define BMI088_GYRO_BW_100HZ_32HZ    0x07U
+#define BMI088_GYRO_BW_2000HZ_230HZ  0x01U
 
 #define BMI088_READ_FLAG             0x80U
 #define BMI088_WRITE_FLAG            0x7FU
+#define BMI088_SPI_ACC_DUMMY_DELAY_MS 1U
 #define BMI088_GRAVITY               9.80665f
 #define BMI088_PI                    3.14159265358979323846f
 #define BMI088_ACC_LSB_TO_MPS2       ((6.0f * BMI088_GRAVITY) / 32768.0f)
@@ -152,6 +153,14 @@ static BMI088_Status_t BMI088_ACC_VerifyReg(uint8_t reg, uint8_t expected)
     return (value == expected) ? BMI088_OK : BMI088_ERR_VERIFY;
 }
 
+static void BMI088_ACC_EnableSPI(void)
+{
+    uint8_t dummy = 0U;
+
+    (void)BMI088_ACC_ReadRegs(BMI088_ACC_CHIP_ID_REG, &dummy, 1U);
+    HAL_Delay(BMI088_SPI_ACC_DUMMY_DELAY_MS);
+}
+
 static BMI088_Status_t BMI088_GYRO_VerifyReg(uint8_t reg, uint8_t expected)
 {
     uint8_t value = 0U;
@@ -165,19 +174,32 @@ static BMI088_Status_t BMI088_GYRO_VerifyReg(uint8_t reg, uint8_t expected)
     return (value == expected) ? BMI088_OK : BMI088_ERR_VERIFY;
 }
 
+static BMI088_Status_t BMI088_GYRO_VerifyRegMasked(uint8_t reg, uint8_t expected, uint8_t mask)
+{
+    uint8_t value = 0U;
+    BMI088_Status_t status = BMI088_GYRO_ReadRegs(reg, &value, 1U);
+
+    if (status != BMI088_OK)
+    {
+        return status;
+    }
+
+    return ((value & mask) == (expected & mask)) ? BMI088_OK : BMI088_ERR_VERIFY;
+}
+
 static BMI088_Status_t BMI088_ConfigAccel(void)
 {
     BMI088_Status_t status;
-
-    status = BMI088_ACC_WriteReg(BMI088_ACC_PWR_CONF_REG, BMI088_ACC_PWR_ACTIVE);
-    if (status != BMI088_OK) return status;
-    HAL_Delay(5U);
 
     status = BMI088_ACC_WriteReg(BMI088_ACC_PWR_CTRL_REG, BMI088_ACC_ENABLE);
     if (status != BMI088_OK) return status;
     HAL_Delay(5U);
 
-    status = BMI088_ACC_WriteReg(BMI088_ACC_CONF_REG, BMI088_ACC_CONF_DEFAULT);
+    status = BMI088_ACC_WriteReg(BMI088_ACC_PWR_CONF_REG, BMI088_ACC_PWR_ACTIVE);
+    if (status != BMI088_OK) return status;
+    HAL_Delay(5U);
+
+    status = BMI088_ACC_WriteReg(BMI088_ACC_CONF_REG, BMI088_ACC_CONF_800HZ_NORMAL);
     if (status != BMI088_OK) return status;
     HAL_Delay(1U);
 
@@ -191,7 +213,7 @@ static BMI088_Status_t BMI088_ConfigAccel(void)
     status = BMI088_ACC_VerifyReg(BMI088_ACC_PWR_CTRL_REG, BMI088_ACC_ENABLE);
     if (status != BMI088_OK) return status;
 
-    status = BMI088_ACC_VerifyReg(BMI088_ACC_CONF_REG, BMI088_ACC_CONF_DEFAULT);
+    status = BMI088_ACC_VerifyReg(BMI088_ACC_CONF_REG, BMI088_ACC_CONF_800HZ_NORMAL);
     if (status != BMI088_OK) return status;
 
     return BMI088_ACC_VerifyReg(BMI088_ACC_RANGE_REG, BMI088_ACC_RANGE_6G);
@@ -209,14 +231,14 @@ static BMI088_Status_t BMI088_ConfigGyro(void)
     if (status != BMI088_OK) return status;
     HAL_Delay(1U);
 
-    status = BMI088_GYRO_WriteReg(BMI088_GYRO_BANDWIDTH_REG, BMI088_GYRO_BW_100HZ_32HZ);
+    status = BMI088_GYRO_WriteReg(BMI088_GYRO_BANDWIDTH_REG, BMI088_GYRO_BW_2000HZ_230HZ);
     if (status != BMI088_OK) return status;
     HAL_Delay(1U);
 
     status = BMI088_GYRO_VerifyReg(BMI088_GYRO_RANGE_REG, BMI088_GYRO_RANGE_2000DPS);
     if (status != BMI088_OK) return status;
 
-    return BMI088_GYRO_VerifyReg(BMI088_GYRO_BANDWIDTH_REG, BMI088_GYRO_BW_100HZ_32HZ);
+    return BMI088_GYRO_VerifyRegMasked(BMI088_GYRO_BANDWIDTH_REG, BMI088_GYRO_BW_2000HZ_230HZ, 0x7FU);
 }
 
 BMI088_Status_t BMI088_ReadChipIDs(uint8_t *accel_id, uint8_t *gyro_id)
@@ -401,8 +423,7 @@ BMI088_Status_t BMI088_Init(void)
     BMI088_CS_AllHigh();
     HAL_Delay(10U);
 
-    (void)BMI088_ReadChipIDs(&accel_id, &gyro_id);
-    HAL_Delay(1U);
+    BMI088_ACC_EnableSPI();
 
     status = BMI088_ReadChipIDs(&accel_id, &gyro_id);
     if (status != BMI088_OK)
@@ -430,6 +451,8 @@ BMI088_Status_t BMI088_Init(void)
         return status;
     }
     HAL_Delay(50U);
+
+    BMI088_ACC_EnableSPI();
 
     status = BMI088_GYRO_WriteReg(BMI088_GYRO_SOFTRESET_REG, BMI088_GYRO_SOFTRESET_CMD);
     if (status != BMI088_OK)

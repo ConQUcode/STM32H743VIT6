@@ -8,6 +8,7 @@
 
 #include "chassis.h"
 #include "DJI_motor.h"
+#include "attitude_ekf.h"
 #include "bsp_dwt.h"
 #include "remote.h"
 #include "robot_def.h"
@@ -33,6 +34,13 @@
 #define CHASSIS_IMU_YAW_AXIS_Z 2U
 #define CHASSIS_IMU_YAW_AXIS CHASSIS_IMU_YAW_AXIS_Z
 #define CHASSIS_IMU_YAW_SIGN 1.0f
+#define CHASSIS_IMU_INIT_SAMPLE_COUNT 512U
+#define CHASSIS_IMU_INIT_SAMPLE_DELAY_MS 1U
+#define CHASSIS_IMU_EKF_Q_NOISE 10.0f
+#define CHASSIS_IMU_EKF_BIAS_NOISE 0.001f
+#define CHASSIS_IMU_EKF_ACCEL_NOISE 1000.0f
+#define CHASSIS_IMU_EKF_LAMBDA 1.0f
+#define CHASSIS_IMU_EKF_ACCEL_LPF 0.01f
 
 /* 底盘行走电机实例（3508 电机）:  */
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb;
@@ -50,6 +58,9 @@ static float at_lf, at_rf, at_lb, at_rb;
 /* 底盘 IMU 内部数据存储 */
 static ChassisIMUData_s chassis_imu_data;
 static uint8_t chassis_imu_enable_request = 1U;
+static AttitudeEKF chassis_imu_ekf;
+static float chassis_imu_yaw_offset_deg = 0.0f;
+static float chassis_imu_yaw_gyro_bias_rads = 0.0f;
 
 /* 全局底盘控制命令状态 */
 ChassisCtrlCmd_s chassis_ctrl_cmd = {
@@ -85,19 +96,104 @@ static float ChassisIMU_DiffDeg(float target_deg, float current_deg)
     return ChassisIMU_NormalizeDeg(target_deg - current_deg);
 }
 
-static float ChassisIMU_SelectYawGyro(void)
+static float ChassisIMU_SelectYawGyroRaw(const BMI088_Data_t *data)
 {
-    float yaw_gyro = g_bmi088_data.gyro_rads.z;
+    float yaw_gyro = data->gyro_rads.z;
 
 #if CHASSIS_IMU_YAW_AXIS == CHASSIS_IMU_YAW_AXIS_X
-    yaw_gyro = g_bmi088_data.gyro_rads.x;
+    yaw_gyro = data->gyro_rads.x;
 #elif CHASSIS_IMU_YAW_AXIS == CHASSIS_IMU_YAW_AXIS_Y
-    yaw_gyro = g_bmi088_data.gyro_rads.y;
+    yaw_gyro = data->gyro_rads.y;
 #else
-    yaw_gyro = g_bmi088_data.gyro_rads.z;
+    yaw_gyro = data->gyro_rads.z;
 #endif
 
-    return yaw_gyro * CHASSIS_IMU_YAW_SIGN;
+    return yaw_gyro;
+}
+
+static float ChassisIMU_SelectYawGyro(void)
+{
+    return (ChassisIMU_SelectYawGyroRaw(&g_bmi088_data) - chassis_imu_yaw_gyro_bias_rads) * CHASSIS_IMU_YAW_SIGN;
+}
+
+static float ChassisIMU_GetEKFYawDeg(void)
+{
+    return ChassisIMU_NormalizeDeg(chassis_imu_ekf.yaw * CHASSIS_IMU_YAW_SIGN + chassis_imu_yaw_offset_deg);
+}
+
+static void ChassisIMU_SetYawWithOffset(float yaw_deg)
+{
+    yaw_deg = ChassisIMU_NormalizeDeg(yaw_deg);
+
+    if (chassis_imu_ekf.initialized != 0U) {
+        chassis_imu_yaw_offset_deg = ChassisIMU_NormalizeDeg(yaw_deg - chassis_imu_ekf.yaw * CHASSIS_IMU_YAW_SIGN);
+    } else {
+        chassis_imu_yaw_offset_deg = yaw_deg;
+    }
+
+    chassis_imu_data.Yaw = yaw_deg;
+}
+
+static void ChassisIMU_InitEKF(float ax, float ay, float az, float gyro_bias_x, float gyro_bias_y, float yaw_gyro_bias)
+{
+    AttitudeEKF_InitFromAccel(&chassis_imu_ekf,
+                              ax,
+                              ay,
+                              az,
+                              CHASSIS_IMU_EKF_Q_NOISE,
+                              CHASSIS_IMU_EKF_BIAS_NOISE,
+                              CHASSIS_IMU_EKF_ACCEL_NOISE,
+                              CHASSIS_IMU_EKF_LAMBDA,
+                              CHASSIS_IMU_EKF_ACCEL_LPF);
+
+    chassis_imu_ekf.x[4] = gyro_bias_x;
+    chassis_imu_ekf.x[5] = gyro_bias_y;
+    chassis_imu_ekf.gyro_bias[0] = gyro_bias_x;
+    chassis_imu_ekf.gyro_bias[1] = gyro_bias_y;
+    chassis_imu_yaw_gyro_bias_rads = yaw_gyro_bias;
+}
+
+static BMI088_Status_t ChassisIMU_CalibrateAndInitEKF(void)
+{
+    BMI088_Status_t status = g_bmi088_status;
+    uint16_t valid_count = 0U;
+    float sum_ax = 0.0f;
+    float sum_ay = 0.0f;
+    float sum_az = 0.0f;
+    float sum_gx = 0.0f;
+    float sum_gy = 0.0f;
+    float sum_yaw_gyro = 0.0f;
+
+    for (uint16_t i = 0U; i < CHASSIS_IMU_INIT_SAMPLE_COUNT; i++) {
+        status = BMI088_ReadAll(&g_bmi088_data);
+        if (status == BMI088_OK) {
+            sum_ax += g_bmi088_data.accel_mps2.x;
+            sum_ay += g_bmi088_data.accel_mps2.y;
+            sum_az += g_bmi088_data.accel_mps2.z;
+            sum_gx += g_bmi088_data.gyro_rads.x;
+            sum_gy += g_bmi088_data.gyro_rads.y;
+            sum_yaw_gyro += ChassisIMU_SelectYawGyroRaw(&g_bmi088_data);
+            valid_count++;
+        }
+
+        if (CHASSIS_IMU_INIT_SAMPLE_DELAY_MS > 0U) {
+            HAL_Delay(CHASSIS_IMU_INIT_SAMPLE_DELAY_MS);
+        }
+    }
+
+    if (valid_count == 0U) {
+        return status;
+    }
+
+    const float inv_count = 1.0f / (float)valid_count;
+    ChassisIMU_InitEKF(sum_ax * inv_count,
+                       sum_ay * inv_count,
+                       sum_az * inv_count,
+                       sum_gx * inv_count,
+                       sum_gy * inv_count,
+                       sum_yaw_gyro * inv_count);
+
+    return BMI088_OK;
 }
 
 /**
@@ -106,9 +202,13 @@ static float ChassisIMU_SelectYawGyro(void)
 static void ChassisIMU_Init(void)
 {
     chassis_imu_data.Yaw = 0.0f;
+    chassis_imu_data.Pitch = 0.0f;
+    chassis_imu_data.Roll = 0.0f;
     chassis_imu_data.GyroZ = 0.0f;
-    chassis_imu_data.status = g_bmi088_status;
-    chassis_imu_data.online = (g_bmi088_status == BMI088_OK) ? 1U : 0U;
+    chassis_imu_data.status = ChassisIMU_CalibrateAndInitEKF();
+    g_bmi088_status = chassis_imu_data.status;
+    chassis_imu_data.online = (chassis_imu_data.status == BMI088_OK) ? 1U : 0U;
+    ChassisIMU_SetYawWithOffset(0.0f);
 
     chassis_ctrl_cmd.Chassis_IMU_data = &chassis_imu_data;
     chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U && chassis_imu_data.online != 0U) ? 1U : 0U;
@@ -119,7 +219,7 @@ static void ChassisIMU_Init(void)
 }
 
 /**
- * @brief 更新底盘 IMU 航向信息，通过 Z 轴角速度积分实现
+ * @brief 更新底盘 IMU 姿态信息，通过 BMI088 数据驱动 EKF 姿态解算
  * @param dt_s 采样周期 (秒)
  */
 static void ChassisIMU_Update(float dt_s)
@@ -145,7 +245,29 @@ static void ChassisIMU_Update(float dt_s)
 
     chassis_imu_data.online = 1U;
     chassis_imu_data.GyroZ = ChassisIMU_SelectYawGyro();
-    chassis_imu_data.Yaw = ChassisIMU_NormalizeDeg(chassis_imu_data.Yaw + chassis_imu_data.GyroZ * dt_s * RAD_2_DEGREE);
+
+    if (chassis_imu_ekf.initialized == 0U) {
+        ChassisIMU_InitEKF(g_bmi088_data.accel_mps2.x,
+                           g_bmi088_data.accel_mps2.y,
+                           g_bmi088_data.accel_mps2.z,
+                           g_bmi088_data.gyro_rads.x,
+                           g_bmi088_data.gyro_rads.y,
+                           ChassisIMU_SelectYawGyroRaw(&g_bmi088_data));
+        ChassisIMU_SetYawWithOffset(chassis_imu_data.Yaw);
+    }
+
+    AttitudeEKF_Update(&chassis_imu_ekf,
+                       g_bmi088_data.gyro_rads.x,
+                       g_bmi088_data.gyro_rads.y,
+                       g_bmi088_data.gyro_rads.z - chassis_imu_yaw_gyro_bias_rads,
+                       g_bmi088_data.accel_mps2.x,
+                       g_bmi088_data.accel_mps2.y,
+                       g_bmi088_data.accel_mps2.z,
+                       dt_s);
+
+    chassis_imu_data.Yaw = ChassisIMU_GetEKFYawDeg();
+    chassis_imu_data.Pitch = chassis_imu_ekf.roll;
+    chassis_imu_data.Roll = chassis_imu_ekf.pitch;
     chassis_ctrl_cmd.imu_enable = (chassis_imu_enable_request != 0U) ? 1U : 0U;
 
     if (was_online == 0U) {
@@ -171,7 +293,7 @@ void ChassisIMU_SetCorrectMode(ChassisIMUCorrectMode_e mode)
 
 void ChassisIMU_ResetYaw(float yaw_deg)
 {
-    chassis_imu_data.Yaw = ChassisIMU_NormalizeDeg(yaw_deg);
+    ChassisIMU_SetYawWithOffset(yaw_deg);
     chassis_ctrl_cmd.last_yaw = chassis_imu_data.Yaw;
     chassis_ctrl_cmd.target_yaw = chassis_imu_data.Yaw;
     chassis_ctrl_cmd.offset_w = 0.0f;
