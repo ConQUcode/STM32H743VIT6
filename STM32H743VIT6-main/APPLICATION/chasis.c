@@ -1,7 +1,7 @@
 /**
  * @file chassis.c
  * @author 
- * @brief 底盘控制实现，包含电机初始化、IMU 处理和运动学分解
+ * @brief 底盘控制实现，包含电机初始化、IMU 处理和运动学分解，基本完善
  * @version 0.1
  * @date 2024-xx-xx
  */
