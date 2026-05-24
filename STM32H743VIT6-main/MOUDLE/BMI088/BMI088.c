@@ -1,6 +1,15 @@
 #include "BMI088.h"
 #include <string.h>
 
+/* BMI088 配置说明:
+ * 加速度计:
+ *   ACC_CONF = 0xAB -> normal mode, ODR 800 Hz.
+ *   ACC_RANGE = 0x01 -> +/-6g, 换算系数为 6g / 32768.
+ * 陀螺仪:
+ *   GYRO_RANGE = 0x00 -> +/-2000 dps.
+ *   GYRO_BANDWIDTH = 0x01 -> ODR 2000 Hz, bandwidth 230 Hz.
+ * BMI088 的 accel 与 gyro 是两个独立 SPI 从设备, 加速度计读寄存器有 1 个 dummy byte,
+ * 所以 ACC_ReadRegs() 发送 len + 2 字节, 有效数据从 rx[2] 开始。 */
 #define BMI088_SPI_TIMEOUT_MS        100U
 
 #define BMI088_ACC_CHIP_ID_REG       0x00U
@@ -153,6 +162,10 @@ static BMI088_Status_t BMI088_ACC_VerifyReg(uint8_t reg, uint8_t expected)
     return (value == expected) ? BMI088_OK : BMI088_ERR_VERIFY;
 }
 
+/* 加速度计 SPI 使能:
+ * BMI088 加速度计上电默认可能处于 I2C 兼容状态, 手册要求通过 CSB1 上升沿/一次 dummy 读
+ * 切换到 SPI 接口。软复位后该状态会丢失, 所以初始化开始和 ACC soft reset 后都要调用一次。
+ * 如果少了这步, 常见现象是 accel_raw 全 0 或 chip id 读取异常。 */
 static void BMI088_ACC_EnableSPI(void)
 {
     uint8_t dummy = 0U;
@@ -174,6 +187,9 @@ static BMI088_Status_t BMI088_GYRO_VerifyReg(uint8_t reg, uint8_t expected)
     return (value == expected) ? BMI088_OK : BMI088_ERR_VERIFY;
 }
 
+/* 陀螺仪带宽寄存器验证:
+ * GYRO_BANDWIDTH bit7 读出固定为 1, 写入配置只比较低 7 bit。
+ * 例如写 0x01 后读回可能是 0x81, 所以这里用 mask=0x7F 验证。 */
 static BMI088_Status_t BMI088_GYRO_VerifyRegMasked(uint8_t reg, uint8_t expected, uint8_t mask)
 {
     uint8_t value = 0U;
@@ -187,6 +203,9 @@ static BMI088_Status_t BMI088_GYRO_VerifyRegMasked(uint8_t reg, uint8_t expected
     return ((value & mask) == (expected & mask)) ? BMI088_OK : BMI088_ERR_VERIFY;
 }
 
+/* 加速度计配置顺序:
+ * 先打开 ACC_PWR_CTRL, 再退出 suspend 到 active, 最后写 ODR/range。
+ * 当前配置为 normal + 800 Hz, +/-6g。 */
 static BMI088_Status_t BMI088_ConfigAccel(void)
 {
     BMI088_Status_t status;
@@ -219,6 +238,9 @@ static BMI088_Status_t BMI088_ConfigAccel(void)
     return BMI088_ACC_VerifyReg(BMI088_ACC_RANGE_REG, BMI088_ACC_RANGE_6G);
 }
 
+/* 陀螺仪配置:
+ * 先退出低功耗进入 normal mode, 再设置 +/-2000 dps 和 2000 Hz / 230 Hz 带宽。
+ * 高 ODR 用来匹配底盘 1 kHz 左右的任务更新, EKF 内部使用实际 dt。 */
 static BMI088_Status_t BMI088_ConfigGyro(void)
 {
     BMI088_Status_t status;
@@ -414,6 +436,11 @@ BMI088_Status_t BMI088_ReadAll(BMI088_Data_t *data)
     return BMI088_ReadTemperature(&data->temperature_c);
 }
 
+/* BMI088 初始化流程:
+ * 1. 拉高两个 CS, 先 dummy 读 ACC, 让加速度计进入 SPI 模式;
+ * 2. 读取 accel/gyro chip id 确认通信正常;
+ * 3. 分别 soft reset, 其中 ACC reset 后要再次 dummy 读恢复 SPI;
+ * 4. 配置 accel 800 Hz、gyro 2000 Hz, 最后读一帧填充 g_bmi088_data。 */
 BMI088_Status_t BMI088_Init(void)
 {
     uint8_t accel_id = 0U;
