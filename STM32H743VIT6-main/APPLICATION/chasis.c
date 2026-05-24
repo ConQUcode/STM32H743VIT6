@@ -14,38 +14,18 @@
 #include "robot_def.h"
 #include <math.h>
 
-/* M3508 行走轮低速死区:
- * 舵轮运动学算出的 vt_* 小于该值时认为是停车, 直接给行走轮 0 速.
- * 原来 300 附近容易在 Stop/Enable 之间反复切换, 微小速度时会抖,
- * 所以这里降到 80, 让低速指令更连续。 */
 #define CHASSIS_ID1_M3508_SPEED_DEADBAND 80.0f
 #define CHASSIS_ID2_M3508_SPEED_DEADBAND 80.0f
 #define CHASSIS_ID3_M3508_SPEED_DEADBAND 80.0f
 #define CHASSIS_ID4_M3508_SPEED_DEADBAND 80.0f
-
-/* GM6020 转向电机限幅:
- * 角度环输出的是目标转速, 受 CHASSIS_STEERING_ANGLE_MAX_OUT 限制;
- * 速度环输出最终 CAN 电流/电压指令, 受 CHASSIS_STEERING_SPEED_MAX_OUT 限制。
- * 转向“没力”优先增大速度环限幅, 转向“慢”再增大角度环限幅或角度环 Kp。 */
 #define CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE 1U
 #define CHASSIS_STEERING_STARTUP_HOLD_TICKS 50U
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
 #define CHASSIS_STEERING_SPEED_MAX_OUT 9000.0f
 #define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
-
-/* 静止回正防抖:
- * 遥控全零时, 仍允许 IMU 的 yaw 修正让底盘原地回正。
- * 当回正误差进入 1 度内, 认为已经到边界点, 关闭 offset_w 并清 PID 残留;
- * 只有再次被拧出 2 度外才重新启动回正, 形成 1~2 度滞回, 避免边界反复抖动。
- * offset_w 小于 1 时停止对齐, 四个舵轮回到底盘机械对齐角, 不再摆 45 度斜口字。 */
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f
 #define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f
 #define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f
-
-/* BMI088 + EKF 姿态解算参数:
- * BMI088 当前配置为加速度 800 Hz、陀螺仪 2000 Hz, 底盘任务按实际 dt 调用 EKF。
- * 初始化时平均若干帧作为静止零偏; yaw 轴零偏单独扣除, pitch/roll 轴零偏放入 EKF bias 状态。
- * yaw 复位不直接改 EKF 四元数, 而是维护 yaw_offset, 这样 ResetYaw 后下一次 EKF 更新不会跳回原角度。 */
 #define CHASSIS_IMU_DT_FALLBACK_S 0.001f
 #define CHASSIS_IMU_DT_MAX_S 0.05f
 #define CHASSIS_IMU_YAW_AXIS_X 0U
@@ -115,9 +95,6 @@ static float ChassisIMU_DiffDeg(float target_deg, float current_deg)
     return ChassisIMU_NormalizeDeg(target_deg - current_deg);
 }
 
-/* 静止回正进入角度死区时清掉航向 PID:
- * PIDCalculate() 在死区内只清 ITerm/Output, Iout 仍可能保留。
- * 如果不清 Iout, 下一次刚退出死区时会带着旧积分冲一下, 表现为边界点抖动。 */
 static void ChassisIMU_ClearCorrectionPID(void)
 {
     chassis_follow_pid.Pout = 0.0f;
@@ -155,11 +132,6 @@ static float ChassisIMU_GetEKFYawDeg(void)
     return ChassisIMU_NormalizeDeg(chassis_imu_ekf.yaw * CHASSIS_IMU_YAW_SIGN + chassis_imu_yaw_offset_deg);
 }
 
-/* yaw 角复位策略:
- * EKF 内部 yaw 由陀螺积分得到, 直接改输出变量只能保持一帧。
- * 这里用 yaw_offset 把 EKF yaw 映射到底盘 yaw:
- *   chassis_yaw = ekf_yaw * yaw_sign + yaw_offset
- * ResetYaw(x) 等价于重新计算 yaw_offset, 不破坏 EKF 内部姿态状态。 */
 static void ChassisIMU_SetYawWithOffset(float yaw_deg)
 {
     yaw_deg = ChassisIMU_NormalizeDeg(yaw_deg);
@@ -192,10 +164,6 @@ static void ChassisIMU_InitEKF(float ax, float ay, float az, float gyro_bias_x, 
     chassis_imu_yaw_gyro_bias_rads = yaw_gyro_bias;
 }
 
-/* 上电静止校准:
- * 连续读取 BMI088 多帧数据, 平均加速度用于从重力方向初始化 EKF 四元数;
- * 平均 gyro x/y 作为 EKF 可观测 bias 初值, yaw 轴 bias 单独保存后在 gz 上扣除。
- * 注意 yaw 轴没有磁力计/外部航向观测, 只能靠上电静止零偏降低漂移。 */
 static BMI088_Status_t ChassisIMU_CalibrateAndInitEKF(void)
 {
     BMI088_Status_t status = g_bmi088_status;
@@ -265,13 +233,6 @@ static void ChassisIMU_Init(void)
  * @brief 更新底盘 IMU 姿态信息，通过 BMI088 数据驱动 EKF 姿态解算
  * @param dt_s 采样周期 (秒)
  */
-/* BMI088 姿态更新:
- * 每个底盘周期读取 BMI088, 用实际 dt 驱动 AttitudeEKF_Update().
- * gz 先扣除上电静止平均得到的 yaw 零偏, 让无磁力计的 yaw 积分漂移尽量小。
- * 车体坐标与 EKF 输出坐标实测 pitch/roll 互换, 所以对外输出:
- *   Pitch = ekf.roll
- *   Roll  = ekf.pitch
- * 这里不改 EKF 内部四元数, 只做底盘数据层适配。 */
 static void ChassisIMU_Update(float dt_s)
 {
     BMI088_Status_t status;
@@ -384,10 +345,6 @@ static uint8_t ChassisSteeringId3StartupGuard(void)
 #endif
 }
 
-/* 行走轮速度下发:
- * vt_* 来自舵轮运动学, 单位与 M3508 speed feedback 保持一致。
- * 小于 deadband 时给 0 速并停止该行走轮, 避免极小速度下 PID 拉扯;
- * deadband 不宜过大, 否则低速移动会在停/启之间切换而抖。 */
 static void ChassisSetDriveMotorRef(DJIMotor_Instance *motor, float speed, float deadband)
 {
     if (motor == NULL) {
@@ -556,12 +513,6 @@ static void MinmizeRotation(float *angle, const float *last_angle, float *speed)
  * @param target_vw 目标角速度指令。
  * @return 叠加到底盘角速度上的修正量 offset_w。
  */
-/* IMU 航向修正:
- * 当前只用 yaw 做底盘姿态矫正, pitch/roll 仅输出给上层观察。
- * STRAIGHT: 没有主动旋转指令时, 锁住 last_yaw, 输出 offset_w 抵消外力扭转;
- * ROTATION: 有旋转指令时积分 target_yaw, 用 yaw 闭环跟随目标角;
- * HYBRID: 旋转时保留一半航向修正, 直行时完整锁航向。
- * 返回值 offset_w 会叠加到底盘角速度 vw 上。 */
 static float UpdateIMUCorrection(float target_vw)
 {
     if(!chassis_ctrl_cmd.imu_enable) {
@@ -612,10 +563,6 @@ static float UpdateIMUCorrection(float target_vw)
     return offset;
 }
 
-/* 静止回正误差来源:
- * 直行/混合模式以 last_yaw 为锁定角;
- * 旋转模式以 target_yaw 为目标角。
- * 静止死区用这个误差判断是否继续原地回正。 */
 static float ChassisIMU_GetCorrectionYawError(void)
 {
     float current_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
@@ -634,12 +581,6 @@ static float ChassisIMU_GetCorrectionYawError(void)
  * @param vw 角速度指令。
  * @note 当前使用4轮舵轮模式：3 号轮为左前轮，1 号轮为左后轮，2 号轮为右后轮，4 号轮为右前轮。
  */
-/* 四舵轮运动学与静止回正:
- * 输入 vx/vy/vw 先叠加 IMU 航向修正 offset_w, 再解算每个舵轮速度 vt_* 和角度 at_*。
- * 遥控全零但 yaw 被外力拧偏时, 不进入停车分支, 允许 offset_w 让底盘原地回正。
- * 回正误差进入 1 度内后锁住 idle_yaw_correction_hold, 清 PID 并停止 offset_w;
- * 只有偏出 2 度外才重新启动回正, 避免在目标边界附近来回抖。
- * 停止时四个舵轮回到底盘对齐角, 不再摆 45 度斜口字。 */
 void SteeringWheelKinematics(float vx, float vy, float vw)
 {
     float chassis_vx = vx;
