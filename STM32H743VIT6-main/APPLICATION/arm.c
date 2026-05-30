@@ -2,6 +2,7 @@
 #include "dm_motor.h"
 #include "dji_motor.h"
 #include "feite_motor.h"
+#include "HEmotor.h"
 #include "arm_kinematics.h"
 #include "remote.h"
 #include "bsp_dwt.h"
@@ -15,6 +16,12 @@
 static DMMotor_Instance *motor_j1;    /* 大臂 DM4340 */
 static DJIMotor_Instance *motor_j2;   /* 小臂 M3508 */
 static FeiteMotor_Instance *motor_j3; /* 末端舵机, ID=4 */
+static HEMotor_Instance *motor_he;    /* 幻尔舵机 */
+
+/* HE 舵机参数 */
+#define HE_INIT_POS     500.0f  /* 初始位置 (垂直) */
+#define HE_RAW_PER_DEG  (1000.0f / 240.0f) /* 假设 0-1000 对应 0-240 度 */
+#define HE_FOLLOW_RATIO 1.0f    /* 1:1 跟随 */
 
 /* J2 减速比 & 同步带耦合系数:
  * M3508 内置 1:19 减速器, 编码器测量的是转子角度 (减速前),
@@ -95,12 +102,13 @@ static void Arm_ReadJointAngles(Arm_JointAngles_t *angles)
 
 /**
  * @brief 把 3 个关节目标角下发给对应电机
- * @note  DM 的 ref 内部还要加回 J1 零点偏置才是物理角度
- *        J2 的 motor 命令需要加上 J1 前馈, 抵消同步带耦合
+ * @note  注意：由于 J1 现在处于 OPEN_LOOP 模式，此函数仅处理 J2/J3 的位置闭环。
+ *        J1 的控制在 Arm_Task 中直接通过 DMMotorSetRef 处理。
  */
 static void Arm_SetAllRefs(Arm_JointAngles_t angles)
 {
-    DMMotorSetRef(motor_j1, J1_MOTOR_SIGN * angles.j1 + j1_zero_offset_deg);
+    // DMMotorSetRef(motor_j1, J1_MOTOR_SIGN * angles.j1 + j1_zero_offset_deg); // J1 现由 Task 直接控制
+
     DJIMotorSetRef(motor_j2, (angles.j2 - J2_HOME_ANGLE_DEG
                                 + J2_COUPLING_RATIO * angles.j1)
                                 * M3508_REDUCTION_RATIO);
@@ -138,6 +146,7 @@ void Arm_Init(void)
             .motor_reverse_flag     = MOTOR_DIRECTION_NORMAL,
             .feedback_reverse_flag  = FEEDBACK_DIRECTION_NORMAL,
             .angle_mode             = MOTOR_ANGLE_MODE_SINGLE_TURN,
+            .close_loop_type        = OPEN_LOOP, // 设置为开环，绕过 host 端 PID/Profile
         },
         .motor_type = DM4340,
     };
@@ -187,6 +196,16 @@ void Arm_Init(void)
             .motor_reverse_flag = MOTOR_DIRECTION_NORMAL,
         };
         motor_j3 = FeiteMotorInit(&j3_config);
+    }
+
+    /* ---- HE: 幻尔舵机, USART1, ID=1 (假设) ---- */
+    {
+        HEMotor_Init_Config_s he_config = {
+            .huart = &huart1,
+            .motor_config = { .id = 1, .cmd = SERVO_MOVE_TIME_WRITE },
+            .motor_ref = { .position = HE_INIT_POS, .time = 100, .stop_flag = HE_ENABLED },
+        };
+        motor_he = HEMotorInit(&he_config);
     }
 }
 
@@ -246,45 +265,46 @@ void Arm_Task(void)
 
     /* ---------------------------------------------------------------- */
     case ARM_STATE_RUN:
-    /* 每周期按拨杆幂等写 target: sw1=home, sw2=home 腕点 +50mm, sw3=保持 */
+    /* 遥控器控制: sw1=停止, sw2=手动控制达妙电机(J1), sw3=停止(保持) */
     /* ---------------------------------------------------------------- */
         if (sw == 1) {
-            target_angles = home_angles;
+            /* 停止模式: 设定值为 0 */
+            DMMotorSetRef(motor_j1, 0.0f);
+            target_angles = current_angles; // 同步当前位置，防止切换模式时跳变
         } else if (sw == 2) {
-            Arm_Position_t tgt;
-            tgt.x   = home_wrist_x - 500.0f;
-            tgt.y   = home_wrist_y + 200.0f;
-            tgt.phi = 0.0f;   /* 2 连杆 IK 不使用 phi */
+            /* 直接值控制: 右摇杆 Y (rocker_r1) 直接控制达妙电机的发送值 (力矩/t_ff) */
+            /* rocker 范围约 ±660, 映射到力矩范围 (DM4340 T_MAX 约 28Nm) */
+            /* 这里假设映射到 ±5.0 Nm 作为示例，用户可根据需求调整比例 */
+            float j1_direct_value = (float)remote_data->rocker_r1 / 660.0f * 5.0f;
+            if (fabsf(j1_direct_value) < 0.1f) j1_direct_value = 0.0f; // 死区
 
-            arm_debug.wrist_x = tgt.x;
-            arm_debug.wrist_y = tgt.y;
-            arm_debug.wrist_r = sqrtf(tgt.x * tgt.x + tgt.y * tgt.y);
-
-            Arm_JointAngles_t ik;
-            uint8_t ik_ret = Arm_IK(tgt, &ik, ARM_ELBOW_DOWN);
-            arm_debug.last_ik = ik;
-            arm_debug.last_ik_ret = ik_ret;
-
-            uint8_t limits_ok = ik_ret ? Arm_CheckJointLimits(ik) : 0;
-            arm_debug.last_limits_ok = limits_ok;
-
-            if (ik_ret && limits_ok) {
-                target_angles.j1 = ik.j1;
-                target_angles.j2 = ik.j2;
-                target_angles.j3 = home_angles.j3;   /* J3 保持 home */
-                arm_debug.ik_ok_count++;
-            } else {
-                arm_debug.ik_fail_count++;
-                /* IK 失败: 保持上次 target 不变 */
-            }
+            DMMotorSetRef(motor_j1, j1_direct_value);
+            
+            /* 其他关节保持当前位置 */
+            target_angles.j2 = current_angles.j2;
+            target_angles.j3 = current_angles.j3;
+            DJIMotorSetRef(motor_j2, (target_angles.j2 - J2_HOME_ANGLE_DEG
+                                        + J2_COUPLING_RATIO * current_angles.j1)
+                                        * M3508_REDUCTION_RATIO);
+        } else {
+            /* 其他档位: 保持 0 力矩 */
+            DMMotorSetRef(motor_j1, 0.0f);
         }
-        /* sw == 3 (或其它): 保持上次 target */
 
-        Arm_SetAllRefs(target_angles);
         arm_debug.target = target_angles;
+        
+        /* HE 舵机跟随 J1 角度保持垂直 */
+        if (motor_he) {
+            float he_pos = HE_INIT_POS + current_angles.j1 * HE_RAW_PER_DEG * HE_FOLLOW_RATIO;
+            if (he_pos > 1000) he_pos = 1000;
+            if (he_pos < 0) he_pos = 0;
+            motor_he->ref.position = (uint16_t)he_pos;
+            motor_he->ref.time = 20; // 快速跟随
+        }
         break;
     }
 
     /* DM 电机控制发送 (DJI/舵机由独立 FreeRTOS 任务调用) */
     DMMotorControl();
+    HEMotorControl();
 }

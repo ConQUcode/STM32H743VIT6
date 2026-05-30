@@ -1,5 +1,6 @@
 #include "remote.h"
 #include <string.h>
+#include "bsp_usart.h"
 #include "usart.h"     // 引入 huart6
 #include "cmsis_os.h"  // 引入 RTOS 接口 API
 
@@ -149,8 +150,8 @@ void Remote_RxCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 /**
  * @brief 串口硬件错误回调函数 (主要处理 ORE 溢出错误)
  */
-void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
-    if (remote_dev != NULL && remote_dev->huart == huart) {
+void Remote_ErrorCallback(UART_HandleTypeDef *huart) {
+	if (remote_dev != NULL && remote_dev->huart == huart) {
         // 发生错误(如打断点引起的 ORE 溢出)后，底层库会自动中止接收并关闭中断。
         // 此时我们必须手动彻底重置状态，并重新下发环形接收指令。
         HAL_UART_AbortReceive(huart);

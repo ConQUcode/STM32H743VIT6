@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "bsp_usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -324,6 +325,7 @@ void OTG_FS_IRQHandler(void)
 /* USER CODE BEGIN 1 */
 #include "feite_motor.h"
 #include "remote.h"
+#include "bsp_usart.h"
 
 extern FeiteMotor_Bus_s default_bus;
 
@@ -334,7 +336,15 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
         default_bus.rx_flag = 1U;
     }
     
-    // 保留原有的遥控器回调
+    // 分发到各模块回调
     Remote_RxCallback(huart, Size);
+    USART_RxCallback(huart, Size);
+}
+
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    // 分发到各模块错误处理
+    Remote_ErrorCallback(huart);
+    USART_ErrorCallback(huart);
 }
 /* USER CODE END 1 */

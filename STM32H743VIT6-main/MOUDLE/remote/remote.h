@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "main.h"
+#include "usart.h"
 
 // 遥控器帧协议常数
 #define REMOTE_FRAME_LEN 18
@@ -66,5 +67,10 @@ void RemoteControlTask(void);
  *        已被包含在弱定义的 HAL_UARTEx_RxEventCallback 中，一般无需手动调用
  */
 void Remote_RxCallback(UART_HandleTypeDef *huart, uint16_t Size);
+
+/**
+ * @brief 串口错误处理逻辑
+ */
+void Remote_ErrorCallback(UART_HandleTypeDef *huart);
 
 #endif /* _REMOTE_H_ */

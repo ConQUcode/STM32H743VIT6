@@ -1280,11 +1280,10 @@ ARM Macro Assembler    Page 20
               00000000 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M7.fp.dp --depen
 d=vit6\startup_stm32h743xx.d -ovit6\startup_stm32h743xx.o -I../Drivers/CMSIS/In
-clude -I.\RTE\_VIT6 -ID:\keilMDK\ARM\PACK\ARM\CMSIS\5.6.0\CMSIS\Core\Include -I
-D:\keilMDK\ARM\PACK\Keil\STM32H7xx_DFP\2.7.0\Drivers\CMSIS\Device\ST\STM32H7xx\
-Include --predefine="__UVISION_VERSION SETA 524" --predefine="_RTE_ SETA 1" --p
-redefine="STM32H743xx SETA 1" --list=startup_stm32h743xx.lst startup_stm32h743x
-x.s
+clude -I.\RTE\_VIT6 -ID:\MDK5.36\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include --pre
+define="__UVISION_VERSION SETA 536" --predefine="_RTE_ SETA 1" --predefine="STM
+32H743xx SETA 1" --predefine="_RTE_ SETA 1" --list=startup_stm32h743xx.lst star
+tup_stm32h743xx.s
 
 
 
