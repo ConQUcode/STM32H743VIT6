@@ -18,7 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "cmsis_os2.h"
 #include "dma.h"
 #include "fdcan.h"
 #include "spi.h"
@@ -119,6 +120,7 @@ int main(void)
   MX_USART6_UART_Init();
   MX_SPI4_Init();
   MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   g_bmi088_status = BMI088_Init();

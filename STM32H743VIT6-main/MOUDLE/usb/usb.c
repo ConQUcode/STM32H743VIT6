@@ -3,7 +3,8 @@
 #include "stdio.h"
 #include "usbd_cdc_if.h"
 #include "main.h"
-
+#include "FreeRTOS.h"
+#include "task.h"
 #include "protocol.h"
 
 /* ------------------ H7 性能/缓存安全配置区 ------------------ */

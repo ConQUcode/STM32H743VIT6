@@ -201,7 +201,7 @@ void Arm_Init(void)
     /* ---- HE: 幻尔舵机, USART1, ID=1 (假设) ---- */
     {
         HEMotor_Init_Config_s he_config = {
-            .huart = &huart1,
+            .huart = &huart2,
             .motor_config = { .id = 1, .cmd = SERVO_MOVE_TIME_WRITE },
             .motor_ref = { .position = HE_INIT_POS, .time = 100, .stop_flag = HE_ENABLED },
         };

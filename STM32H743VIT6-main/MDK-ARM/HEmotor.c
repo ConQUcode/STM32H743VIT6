@@ -14,16 +14,23 @@ static void HEMotorLostCallback(void *motor_ptr)
 
 HEMotor_Instance *HEMotorInit(HEMotor_Init_Config_s *config)
 {
-    if (he_idx >= HE_MOTOR_CNT) return NULL;
+if (config == NULL || he_idx >= HE_MOTOR_CNT) return NULL;
 
     HEMotor_Instance *motor = (HEMotor_Instance *)malloc(sizeof(HEMotor_Instance));
     memset(motor, 0, sizeof(HEMotor_Instance));
 
+    // 显式构造 BSP 串口初始化结构体
+    USART_Init_Config_s bsp_usart_config = {
+        .usart_handle = config->huart,       // 确保这里拿到了 &huart2
+        .recv_buff_size = HE_MAX_BUFFSIZE,
+        .module_callback = NULL
+    };
+    
+    // 调用 BSP 注册函数
+    motor->usart_instance = USARTRegister(&bsp_usart_config);
+
     motor->config = config->motor_config;
     motor->ref = config->motor_ref;
-    
-    // 注册串口实例
-    motor->usart_instance = USARTRegister(&config->usart_config);
 
     // 注册守护进程
     Daemon_Init_Config_s daemon_config = {

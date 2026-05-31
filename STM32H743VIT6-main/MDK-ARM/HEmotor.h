@@ -28,7 +28,7 @@ typedef struct {
     uint8_t stop_flag; // ∆ÙÕ£±Í÷æ
 } HEMotor_Ref_s;
 
-#pragma pack(1)
+
 typedef struct {
     USART_Instance *usart_instance;
     Daemon_Instance *daemon_instance;
@@ -38,7 +38,7 @@ typedef struct {
     
     uint8_t send_buff[HE_MAX_BUFFSIZE];
 } HEMotor_Instance;
-#pragma pack()
+
 
 typedef struct {
 	  UART_HandleTypeDef *huart; 

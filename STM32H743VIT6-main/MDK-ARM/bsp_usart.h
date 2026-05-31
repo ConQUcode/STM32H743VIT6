@@ -15,7 +15,7 @@
 #include "stdlib.h"
 #include "usart.h"
 
-#define USART_DEVICE_MAX_NUM 3    // ֧�ֵ����USART�豸����
+#define USART_DEVICE_MAX_NUM  5    // ֧�ֵ����USART�豸����
 #define USART_RXBUFF_LIMIT   255u // ���Э����Ҫ�����buff,���޸�����
 
 // ģ��ص�����,���ڽ���Э��

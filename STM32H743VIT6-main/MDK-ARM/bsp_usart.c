@@ -27,13 +27,18 @@ static USART_Instance *usart_instances[USART_DEVICE_MAX_NUM] = {NULL};
  */
 void USARTServiceInit(USART_Instance *_instance)
 {
-    HAL_UARTEx_ReceiveToIdle_DMA(_instance->usart_handle, _instance->recv_buff, _instance->recv_buff_size);
-    // �ر�dma half transfer�жϷ�ֹ���ν���HAL_UARTEx_RxEventCallback()
-    // ����HAL���һ�����ʧ��,����DMA�������/������Լ�����IDLE�ж϶��ᴥ��HAL_UARTEx_RxEventCallback()
-    // ����ֻϣ��������һ�ֺ͵��������,���ֱ�ӹر�DMA�봫���ж�
-    __HAL_DMA_DISABLE_IT(_instance->usart_handle->hdmarx, DMA_IT_HT);
-}
+    if (_instance == NULL || _instance->usart_handle == NULL) return;
 
+    // 检查是否存在 DMA 句柄且 Instance 有效
+    if (_instance->usart_handle->hdmarx != NULL && _instance->usart_handle->hdmarx->Instance != NULL) {
+        HAL_UARTEx_ReceiveToIdle_DMA(_instance->usart_handle, _instance->recv_buff, _instance->recv_buff_size);
+        // 关闭 DMA 半传输中断
+        __HAL_DMA_DISABLE_IT(_instance->usart_handle->hdmarx, DMA_IT_HT);
+    } else {
+        // 如果没有 DMA，退回到普通中断接收模式（以防万一）
+        HAL_UARTEx_ReceiveToIdle_IT(_instance->usart_handle, _instance->recv_buff, _instance->recv_buff_size);
+    }
+}
 /**
  * @brief ע��һ������ʵ��,����һ������ʵ��ָ��
  *

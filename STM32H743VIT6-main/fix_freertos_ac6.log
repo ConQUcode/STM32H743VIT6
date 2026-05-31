@@ -914,3 +914,21 @@
 [2026/05/31 周日  2:32:58.93] exit code 0 
 [2026/05/31 周日  2:45:52.96] run fix_freertos_ac6.bat 
 [2026/05/31 周日  2:45:56.40] exit code 0 
+[2026/05/31 周日 14:38:54.90] run fix_freertos_ac6.bat 
+[2026/05/31 周日 14:39:00.14] exit code 0 
+[2026/05/31 周日 14:50:06.94] run fix_freertos_ac6.bat 
+[2026/05/31 周日 14:50:12.36] exit code 0 
+[2026/05/31 周日 15:16:24.05] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:16:27.83] exit code 1 
+[2026/05/31 周日 15:18:27.56] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:18:30.05] exit code 1 
+[2026/05/31 周日 15:19:01.47] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:19:03.35] exit code 1 
+[2026/05/31 周日 15:19:43.04] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:19:44.96] exit code 1 
+[2026/05/31 周日 15:20:33.19] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:20:38.98] exit code 1 
+[2026/05/31 周日 15:27:29.43] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:27:31.24] exit code 1 
+[2026/05/31 周日 15:43:33.05] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:43:35.61] exit code 1 
