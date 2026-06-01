@@ -1,0 +1,936 @@
+[2026/03/29 周日  2:00:35.42] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:00:35.76] exit code 1 
+[2026/03/29 周日  2:05:50.31] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:05:50.62] exit code 1 
+[2026/03/29 周日  2:07:09.90] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:07:10.21] exit code 1 
+[2026/03/29 周日  2:11:42.50] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:11:42.95] exit code 0 
+[2026/03/29 周日  2:11:56.39] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:11:57.10] exit code 0 
+[2026/03/29 周日  2:13:35.52] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:13:36.27] exit code 0 
+[2026/03/29 周日  2:15:29.73] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:15:30.19] exit code 0 
+[2026/03/29 周日  2:15:48.27] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:15:48.98] exit code 0 
+[2026/03/29 周日  2:19:04.59] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:19:05.06] exit code 0 
+[2026/03/29 周日  2:19:20.21] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:19:20.93] exit code 0 
+[2026/03/29 周日  2:19:44.90] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:19:45.66] exit code 0 
+[2026/03/29 周日  2:19:49.85] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:19:50.55] exit code 0 
+[2026/03/29 周日  2:39:05.81] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:39:06.52] exit code 0 
+[2026/03/29 周日  2:39:45.34] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:39:46.16] exit code 0 
+[2026/03/29 周日  2:40:09.69] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:40:10.38] exit code 0 
+[2026/03/29 周日  2:40:14.46] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:40:15.19] exit code 0 
+[2026/03/29 周日  2:40:33.00] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:40:33.74] exit code 0 
+[2026/03/29 周日  2:40:45.97] run fix_freertos_ac6.bat 
+[2026/03/29 周日  2:40:46.69] exit code 0 
+[2026/03/30 周一  0:32:11.11] run fix_freertos_ac6.bat 
+[2026/03/30 周一  0:32:12.03] exit code 0 
+[2026/03/30 周一  0:33:27.28] run fix_freertos_ac6.bat 
+[2026/03/30 周一  0:33:28.02] exit code 0 
+[2026/03/30 周一  0:37:03.90] run fix_freertos_ac6.bat 
+[2026/03/30 周一  0:37:04.58] exit code 0 
+[2026/04/02 周四 20:29:55.40] run fix_freertos_ac6.bat 
+[2026/04/02 周四 20:29:56.12] exit code 0 
+[2026/04/02 周四 20:49:01.45] run fix_freertos_ac6.bat 
+[2026/04/02 周四 20:49:02.17] exit code 0 
+[2026/04/02 周四 20:49:21.12] run fix_freertos_ac6.bat 
+[2026/04/02 周四 20:49:21.82] exit code 0 
+[2026/04/02 周四 21:14:49.25] run fix_freertos_ac6.bat 
+[2026/04/02 周四 21:14:49.99] exit code 0 
+[2026/04/02 周四 21:29:26.97] run fix_freertos_ac6.bat 
+[2026/04/02 周四 21:29:27.89] exit code 0 
+[2026/04/02 周四 21:29:51.04] run fix_freertos_ac6.bat 
+[2026/04/02 周四 21:29:51.77] exit code 0 
+[2026/04/02 周四 21:30:53.18] run fix_freertos_ac6.bat 
+[2026/04/02 周四 21:30:53.85] exit code 0 
+[2026/04/03 周五  9:34:39.54] run fix_freertos_ac6.bat 
+[2026/04/03 周五  9:34:40.43] exit code 0 
+[2026/04/03 周五  9:43:26.99] run fix_freertos_ac6.bat 
+[2026/04/03 周五  9:43:28.16] exit code 0 
+[2026/04/03 周五  9:43:40.29] run fix_freertos_ac6.bat 
+[2026/04/03 周五  9:43:40.99] exit code 0 
+[2026/04/03 周五  9:49:28.30] run fix_freertos_ac6.bat 
+[2026/04/03 周五  9:49:29.35] exit code 0 
+[2026/04/03 周五  9:49:58.20] run fix_freertos_ac6.bat 
+[2026/04/03 周五  9:49:58.89] exit code 0 
+[2026/04/03 周五 10:06:26.98] run fix_freertos_ac6.bat 
+[2026/04/03 周五 10:06:27.76] exit code 0 
+[2026/04/04 周六 19:44:24.19] run fix_freertos_ac6.bat 
+[2026/04/04 周六 19:44:25.12] exit code 0 
+[2026/04/04 周六 20:19:40.60] run fix_freertos_ac6.bat 
+[2026/04/04 周六 20:19:41.43] exit code 0 
+[2026/04/04 周六 20:29:33.37] run fix_freertos_ac6.bat 
+[2026/04/04 周六 20:29:34.75] exit code 0 
+[2026/04/04 周六 20:58:04.18] run fix_freertos_ac6.bat 
+[2026/04/04 周六 20:58:05.23] exit code 0 
+[2026/04/04 周六 20:58:41.76] run fix_freertos_ac6.bat 
+[2026/04/04 周六 20:58:42.78] exit code 0 
+[2026/04/04 周六 21:01:02.57] run fix_freertos_ac6.bat 
+[2026/04/04 周六 21:01:03.59] exit code 0 
+[2026/04/05 周日  1:24:17.63] run fix_freertos_ac6.bat 
+[2026/04/05 周日  1:24:19.41] exit code 0 
+[2026/04/05 周日  1:32:48.95] run fix_freertos_ac6.bat 
+[2026/04/05 周日  1:32:50.51] exit code 0 
+[2026/04/05 周日  1:49:50.96] run fix_freertos_ac6.bat 
+[2026/04/05 周日  1:49:52.34] exit code 0 
+[2026/04/05 周日  2:02:08.05] run fix_freertos_ac6.bat 
+[2026/04/05 周日  2:02:09.21] exit code 0 
+[2026/04/05 周日 16:32:53.87] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:32:55.75] exit code 0 
+[2026/04/05 周日 16:37:14.18] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:37:15.26] exit code 0 
+[2026/04/05 周日 16:37:38.12] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:37:39.16] exit code 0 
+[2026/04/05 周日 16:38:05.45] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:38:06.49] exit code 0 
+[2026/04/05 周日 16:38:44.29] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:38:45.34] exit code 0 
+[2026/04/05 周日 16:39:14.93] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:39:16.01] exit code 0 
+[2026/04/05 周日 16:41:10.25] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:41:11.35] exit code 0 
+[2026/04/05 周日 16:41:42.70] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:41:43.78] exit code 0 
+[2026/04/05 周日 16:54:08.50] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:54:09.61] exit code 0 
+[2026/04/05 周日 16:56:54.97] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:56:56.10] exit code 0 
+[2026/04/05 周日 16:57:21.91] run fix_freertos_ac6.bat 
+[2026/04/05 周日 16:57:22.98] exit code 0 
+[2026/04/05 周日 17:04:08.10] run fix_freertos_ac6.bat 
+[2026/04/05 周日 17:04:09.46] exit code 0 
+[2026/04/11 周六 13:01:06.81] run fix_freertos_ac6.bat 
+[2026/04/11 周六 13:01:08.27] exit code 0 
+[2026/04/11 周六 13:09:35.73] run fix_freertos_ac6.bat 
+[2026/04/11 周六 13:09:37.48] exit code 0 
+[2026/04/11 周六 13:34:50.77] run fix_freertos_ac6.bat 
+[2026/04/11 周六 13:34:52.26] exit code 0 
+[2026/04/11 周六 14:43:50.72] run fix_freertos_ac6.bat 
+[2026/04/11 周六 14:43:52.24] exit code 0 
+[2026/04/11 周六 15:10:47.41] run fix_freertos_ac6.bat 
+[2026/04/11 周六 15:10:48.92] exit code 0 
+[2026/04/11 周六 15:11:12.11] run fix_freertos_ac6.bat 
+[2026/04/11 周六 15:11:13.27] exit code 0 
+[2026/04/11 周六 15:28:27.67] run fix_freertos_ac6.bat 
+[2026/04/11 周六 15:28:28.87] exit code 0 
+[2026/04/11 周六 17:15:52.21] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:15:53.48] exit code 0 
+[2026/04/11 周六 17:32:43.35] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:32:44.62] exit code 0 
+[2026/04/11 周六 17:34:15.80] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:34:16.99] exit code 0 
+[2026/04/11 周六 17:37:09.95] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:37:11.07] exit code 0 
+[2026/04/11 周六 17:38:39.75] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:38:40.87] exit code 0 
+[2026/04/11 周六 17:39:06.70] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:39:07.81] exit code 0 
+[2026/04/11 周六 17:39:51.58] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:39:52.68] exit code 0 
+[2026/04/11 周六 17:40:27.88] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:40:29.04] exit code 0 
+[2026/04/11 周六 17:49:36.68] run fix_freertos_ac6.bat 
+[2026/04/11 周六 17:49:37.83] exit code 0 
+[2026/04/12 周日 14:34:10.51] run fix_freertos_ac6.bat 
+[2026/04/12 周日 14:34:11.87] exit code 0 
+[2026/04/12 周日 14:34:59.15] run fix_freertos_ac6.bat 
+[2026/04/12 周日 14:35:00.28] exit code 0 
+[2026/04/12 周日 14:40:11.56] run fix_freertos_ac6.bat 
+[2026/04/12 周日 14:40:12.72] exit code 0 
+[2026/04/12 周日 14:47:54.10] run fix_freertos_ac6.bat 
+[2026/04/12 周日 14:47:55.21] exit code 0 
+[2026/04/12 周日 14:51:44.44] run fix_freertos_ac6.bat 
+[2026/04/12 周日 14:51:45.55] exit code 0 
+[2026/04/12 周日 15:02:58.88] run fix_freertos_ac6.bat 
+[2026/04/12 周日 15:03:00.01] exit code 0 
+[2026/04/12 周日 15:15:47.27] run fix_freertos_ac6.bat 
+[2026/04/12 周日 15:15:48.43] exit code 0 
+[2026/04/12 周日 15:26:33.68] run fix_freertos_ac6.bat 
+[2026/04/12 周日 15:26:34.77] exit code 0 
+[2026/04/12 周日 15:32:39.37] run fix_freertos_ac6.bat 
+[2026/04/12 周日 15:32:40.49] exit code 0 
+[2026/04/12 周日 18:05:54.77] run fix_freertos_ac6.bat 
+[2026/04/12 周日 18:05:56.07] exit code 0 
+[2026/04/12 周日 18:17:05.17] run fix_freertos_ac6.bat 
+[2026/04/12 周日 18:17:06.32] exit code 0 
+[2026/04/28 周二  4:57:17.51] run fix_freertos_ac6.bat 
+[2026/04/28 周二  4:57:18.77] exit code 0 
+[2026/04/28 周二  4:58:34.57] run fix_freertos_ac6.bat 
+[2026/04/28 周二  4:58:35.75] exit code 0 
+[2026/04/28 周二  8:47:22.45] run fix_freertos_ac6.bat 
+[2026/04/28 周二  8:47:23.89] exit code 0 
+[2026/04/29 周三  1:44:43.94] run fix_freertos_ac6.bat 
+[2026/04/29 周三  1:44:45.49] exit code 0 
+[2026/04/29 周三  1:55:57.57] run fix_freertos_ac6.bat 
+[2026/04/29 周三  1:55:58.74] exit code 0 
+[2026/04/29 周三  2:01:07.39] run fix_freertos_ac6.bat 
+[2026/04/29 周三  2:01:08.52] exit code 0 
+[2026/04/29 周三  2:04:19.77] run fix_freertos_ac6.bat 
+[2026/04/29 周三  2:04:20.92] exit code 0 
+[2026/04/29 周三 15:49:39.42] run fix_freertos_ac6.bat 
+[2026/04/29 周三 15:49:41.28] exit code 0 
+[2026/04/29 周三 15:50:35.57] run fix_freertos_ac6.bat 
+[2026/04/29 周三 15:50:38.23] exit code 0 
+[2026/04/29 周三 15:53:38.15] run fix_freertos_ac6.bat 
+[2026/04/29 周三 15:53:40.45] exit code 0 
+[2026/04/29 周三 19:49:55.08] run fix_freertos_ac6.bat 
+[2026/04/29 周三 19:49:57.63] exit code 0 
+[2026/04/29 周三 20:21:17.46] run fix_freertos_ac6.bat 
+[2026/04/29 周三 20:21:19.77] exit code 0 
+[2026/04/29 周三 21:39:00.21] run fix_freertos_ac6.bat 
+[2026/04/29 周三 21:39:02.29] exit code 0 
+[2026/04/29 周三 21:39:27.92] run fix_freertos_ac6.bat 
+[2026/04/29 周三 21:39:29.98] exit code 0 
+[2026/04/30 周四  1:28:34.85] run fix_freertos_ac6.bat 
+[2026/04/30 周四  1:28:37.02] exit code 0 
+[2026/04/30 周四  9:15:26.49] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:15:29.06] exit code 0 
+[2026/04/30 周四  9:16:18.15] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:16:19.48] exit code 1 
+[2026/04/30 周四  9:16:45.14] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:16:46.10] exit code 1 
+[2026/04/30 周四  9:23:54.80] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:23:55.90] exit code 0 
+[2026/04/30 周四  9:24:09.50] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:24:11.29] exit code 0 
+[2026/04/30 周四  9:25:01.06] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:25:03.17] exit code 0 
+[2026/04/30 周四  9:25:26.49] run fix_freertos_ac6.bat 
+[2026/04/30 周四  9:25:28.63] exit code 0 
+[2026/05/01 周五 16:52:42.83] run fix_freertos_ac6.bat 
+[2026/05/01 周五 16:52:45.28] exit code 0 
+[2026/05/01 周五 16:54:18.64] run fix_freertos_ac6.bat 
+[2026/05/01 周五 16:54:20.75] exit code 0 
+[2026/05/01 周五 17:25:36.79] run fix_freertos_ac6.bat 
+[2026/05/01 周五 17:25:39.26] exit code 0 
+[2026/05/01 周五 17:28:36.96] run fix_freertos_ac6.bat 
+[2026/05/01 周五 17:28:39.79] exit code 0 
+[2026/05/01 周五 17:29:21.42] run fix_freertos_ac6.bat 
+[2026/05/01 周五 17:29:23.74] exit code 0 
+[2026/05/01 周五 22:33:08.10] run fix_freertos_ac6.bat 
+[2026/05/01 周五 22:33:11.17] exit code 0 
+[2026/05/01 周五 22:39:38.95] run fix_freertos_ac6.bat 
+[2026/05/01 周五 22:39:41.74] exit code 0 
+[2026/05/01 周五 22:58:58.38] run fix_freertos_ac6.bat 
+[2026/05/01 周五 22:59:00.99] exit code 0 
+[2026/05/01 周五 22:59:25.47] run fix_freertos_ac6.bat 
+[2026/05/01 周五 22:59:27.97] exit code 0 
+[2026/05/01 周五 22:59:50.03] run fix_freertos_ac6.bat 
+[2026/05/01 周五 22:59:52.56] exit code 0 
+[2026/05/01 周五 23:00:39.56] run fix_freertos_ac6.bat 
+[2026/05/01 周五 23:00:42.05] exit code 0 
+[2026/05/02 周六  0:05:49.21] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:05:51.87] exit code 0 
+[2026/05/02 周六  0:06:32.97] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:06:35.45] exit code 0 
+[2026/05/02 周六  0:09:16.53] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:09:18.98] exit code 0 
+[2026/05/02 周六  0:18:14.68] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:18:17.15] exit code 0 
+[2026/05/02 周六  0:23:38.31] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:23:40.79] exit code 0 
+[2026/05/02 周六  0:25:49.89] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:25:52.38] exit code 0 
+[2026/05/02 周六  0:29:38.97] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:29:41.52] exit code 0 
+[2026/05/02 周六  0:30:38.98] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:30:41.44] exit code 0 
+[2026/05/02 周六  0:32:24.50] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:32:26.95] exit code 0 
+[2026/05/02 周六  0:47:56.78] run fix_freertos_ac6.bat 
+[2026/05/02 周六  0:47:59.29] exit code 0 
+[2026/05/02 周六  1:02:24.03] run fix_freertos_ac6.bat 
+[2026/05/02 周六  1:02:26.54] exit code 0 
+[2026/05/02 周六  1:09:51.69] run fix_freertos_ac6.bat 
+[2026/05/02 周六  1:09:54.20] exit code 0 
+[2026/05/02 周六  1:15:07.71] run fix_freertos_ac6.bat 
+[2026/05/02 周六  1:15:10.17] exit code 0 
+[2026/05/02 周六  1:17:08.01] run fix_freertos_ac6.bat 
+[2026/05/02 周六  1:17:10.53] exit code 0 
+[2026/05/02 周六  1:19:52.27] run fix_freertos_ac6.bat 
+[2026/05/02 周六  1:19:54.79] exit code 0 
+[2026/05/02 周六  4:02:54.54] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:02:57.00] exit code 0 
+[2026/05/02 周六  4:05:15.71] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:05:18.15] exit code 0 
+[2026/05/02 周六  4:15:07.69] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:15:10.19] exit code 0 
+[2026/05/02 周六  4:20:22.95] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:20:25.48] exit code 0 
+[2026/05/02 周六  4:35:18.96] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:35:21.47] exit code 0 
+[2026/05/02 周六  4:50:36.88] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:50:39.44] exit code 0 
+[2026/05/02 周六  4:51:06.37] run fix_freertos_ac6.bat 
+[2026/05/02 周六  4:51:08.93] exit code 0 
+[2026/05/02 周六  5:00:27.89] run fix_freertos_ac6.bat 
+[2026/05/02 周六  5:00:30.38] exit code 0 
+[2026/05/02 周六  5:09:09.43] run fix_freertos_ac6.bat 
+[2026/05/02 周六  5:09:11.92] exit code 0 
+[2026/05/02 周六 15:25:12.24] run fix_freertos_ac6.bat 
+[2026/05/02 周六 15:25:15.00] exit code 0 
+[2026/05/02 周六 15:43:14.66] run fix_freertos_ac6.bat 
+[2026/05/02 周六 15:43:17.88] exit code 0 
+[2026/05/02 周六 15:43:42.18] run fix_freertos_ac6.bat 
+[2026/05/02 周六 15:43:44.52] exit code 0 
+[2026/05/02 周六 15:52:43.03] run fix_freertos_ac6.bat 
+[2026/05/02 周六 15:52:45.24] exit code 0 
+[2026/05/02 周六 15:53:40.73] run fix_freertos_ac6.bat 
+[2026/05/02 周六 15:53:43.00] exit code 0 
+[2026/05/02 周六 19:05:06.55] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:05:09.25] exit code 0 
+[2026/05/02 周六 19:12:28.57] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:12:31.16] exit code 0 
+[2026/05/02 周六 19:16:21.21] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:16:23.72] exit code 0 
+[2026/05/02 周六 19:16:36.20] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:16:39.04] exit code 0 
+[2026/05/02 周六 19:18:17.30] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:18:20.05] exit code 0 
+[2026/05/02 周六 19:19:59.36] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:20:01.81] exit code 0 
+[2026/05/02 周六 19:20:15.19] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:20:17.83] exit code 0 
+[2026/05/02 周六 19:21:22.56] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:21:24.89] exit code 0 
+[2026/05/02 周六 19:22:41.22] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:22:43.37] exit code 0 
+[2026/05/02 周六 19:23:18.24] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:23:20.46] exit code 0 
+[2026/05/02 周六 19:24:02.22] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:24:04.36] exit code 0 
+[2026/05/02 周六 19:43:34.71] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:43:37.35] exit code 0 
+[2026/05/02 周六 19:43:58.24] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:44:00.76] exit code 0 
+[2026/05/02 周六 19:44:52.32] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:44:54.63] exit code 0 
+[2026/05/02 周六 19:52:56.10] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:52:58.30] exit code 0 
+[2026/05/02 周六 19:58:51.27] run fix_freertos_ac6.bat 
+[2026/05/02 周六 19:58:53.44] exit code 0 
+[2026/05/02 周六 20:08:24.93] run fix_freertos_ac6.bat 
+[2026/05/02 周六 20:08:27.13] exit code 0 
+[2026/05/02 周六 20:12:00.12] run fix_freertos_ac6.bat 
+[2026/05/02 周六 20:12:02.23] exit code 0 
+[2026/05/02 周六 20:37:09.97] run fix_freertos_ac6.bat 
+[2026/05/02 周六 20:37:12.74] exit code 0 
+[2026/05/02 周六 21:07:12.96] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:07:15.16] exit code 0 
+[2026/05/02 周六 21:07:33.15] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:07:35.38] exit code 0 
+[2026/05/02 周六 21:08:02.90] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:08:05.24] exit code 0 
+[2026/05/02 周六 21:08:51.66] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:08:53.98] exit code 0 
+[2026/05/02 周六 21:11:28.39] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:11:30.51] exit code 0 
+[2026/05/02 周六 21:12:46.19] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:12:48.37] exit code 0 
+[2026/05/02 周六 21:14:29.44] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:14:31.60] exit code 0 
+[2026/05/02 周六 21:43:08.91] run fix_freertos_ac6.bat 
+[2026/05/02 周六 21:43:11.35] exit code 0 
+[2026/05/02 周六 22:12:53.55] run fix_freertos_ac6.bat 
+[2026/05/02 周六 22:12:55.70] exit code 0 
+[2026/05/02 周六 23:02:08.02] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:02:10.18] exit code 0 
+[2026/05/02 周六 23:06:46.56] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:06:48.73] exit code 0 
+[2026/05/02 周六 23:10:19.04] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:10:21.18] exit code 0 
+[2026/05/02 周六 23:14:32.12] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:14:34.24] exit code 0 
+[2026/05/02 周六 23:21:18.33] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:21:20.43] exit code 0 
+[2026/05/02 周六 23:24:20.32] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:24:22.47] exit code 0 
+[2026/05/02 周六 23:44:39.94] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:44:42.12] exit code 0 
+[2026/05/02 周六 23:49:06.40] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:49:08.55] exit code 0 
+[2026/05/02 周六 23:53:06.77] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:53:08.94] exit code 0 
+[2026/05/02 周六 23:56:33.73] run fix_freertos_ac6.bat 
+[2026/05/02 周六 23:56:35.94] exit code 0 
+[2026/05/03 周日  0:00:54.35] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:00:56.55] exit code 0 
+[2026/05/03 周日  0:08:06.00] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:08:08.22] exit code 0 
+[2026/05/03 周日  0:14:39.90] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:14:42.00] exit code 0 
+[2026/05/03 周日  0:23:42.90] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:23:45.17] exit code 0 
+[2026/05/03 周日  0:27:20.79] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:27:22.91] exit code 0 
+[2026/05/03 周日  0:31:22.28] run fix_freertos_ac6.bat 
+[2026/05/03 周日  0:31:24.43] exit code 0 
+[2026/05/03 周日  1:50:51.88] run fix_freertos_ac6.bat 
+[2026/05/03 周日  1:50:55.22] exit code 0 
+[2026/05/03 周日  2:04:21.22] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:04:23.52] exit code 0 
+[2026/05/03 周日  2:08:12.93] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:08:15.16] exit code 0 
+[2026/05/03 周日  2:08:33.05] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:08:35.25] exit code 0 
+[2026/05/03 周日  2:17:03.66] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:17:05.82] exit code 0 
+[2026/05/03 周日  2:19:48.53] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:19:50.72] exit code 0 
+[2026/05/03 周日  2:28:00.36] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:28:02.91] exit code 0 
+[2026/05/03 周日  2:29:59.49] run fix_freertos_ac6.bat 
+[2026/05/03 周日  2:30:01.87] exit code 0 
+[2026/05/04 周一  0:31:22.98] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:31:26.18] exit code 0 
+[2026/05/04 周一  0:31:41.03] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:31:43.44] exit code 0 
+[2026/05/04 周一  0:32:02.96] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:32:05.23] exit code 0 
+[2026/05/04 周一  0:34:11.95] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:34:14.30] exit code 0 
+[2026/05/04 周一  0:34:36.56] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:34:38.77] exit code 0 
+[2026/05/04 周一  0:34:56.87] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:34:59.10] exit code 0 
+[2026/05/04 周一  0:35:10.70] run fix_freertos_ac6.bat 
+[2026/05/04 周一  0:35:12.92] exit code 0 
+[2026/05/04 周一  1:13:22.43] run fix_freertos_ac6.bat 
+[2026/05/04 周一  1:13:25.26] exit code 0 
+[2026/05/04 周一  2:04:41.95] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:04:44.80] exit code 0 
+[2026/05/04 周一  2:05:25.90] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:05:28.25] exit code 0 
+[2026/05/04 周一  2:14:14.97] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:14:17.23] exit code 0 
+[2026/05/04 周一  2:14:47.91] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:14:50.08] exit code 0 
+[2026/05/04 周一  2:18:39.57] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:18:41.83] exit code 0 
+[2026/05/04 周一  2:28:01.99] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:28:04.15] exit code 0 
+[2026/05/04 周一  2:33:48.87] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:33:51.01] exit code 0 
+[2026/05/04 周一  2:34:05.55] run fix_freertos_ac6.bat 
+[2026/05/04 周一  2:34:07.68] exit code 0 
+[2026/05/04 周一  3:57:41.15] run fix_freertos_ac6.bat 
+[2026/05/04 周一  3:57:43.52] exit code 0 
+[2026/05/04 周一  4:16:23.07] run fix_freertos_ac6.bat 
+[2026/05/04 周一  4:16:25.27] exit code 0 
+[2026/05/04 周一  4:25:37.62] run fix_freertos_ac6.bat 
+[2026/05/04 周一  4:25:39.82] exit code 0 
+[2026/05/04 周一  4:25:51.72] run fix_freertos_ac6.bat 
+[2026/05/04 周一  4:25:53.92] exit code 0 
+[2026/05/04 周一  5:21:01.43] run fix_freertos_ac6.bat 
+[2026/05/04 周一  5:21:03.77] exit code 0 
+[2026/05/04 周一  5:22:28.99] run fix_freertos_ac6.bat 
+[2026/05/04 周一  5:22:31.23] exit code 0 
+[2026/05/04 周一  5:40:30.28] run fix_freertos_ac6.bat 
+[2026/05/04 周一  5:40:32.53] exit code 0 
+[2026/05/04 周一  5:40:47.19] run fix_freertos_ac6.bat 
+[2026/05/04 周一  5:40:49.44] exit code 0 
+[2026/05/04 周一  6:14:03.98] run fix_freertos_ac6.bat 
+[2026/05/04 周一  6:14:06.15] exit code 0 
+[2026/05/04 周一  6:34:17.94] run fix_freertos_ac6.bat 
+[2026/05/04 周一  6:34:20.20] exit code 0 
+[2026/05/04 周一  6:44:25.46] run fix_freertos_ac6.bat 
+[2026/05/04 周一  6:44:27.60] exit code 0 
+[2026/05/04 周一  6:47:50.80] run fix_freertos_ac6.bat 
+[2026/05/04 周一  6:47:52.93] exit code 0 
+[2026/05/04 周一  6:48:28.69] run fix_freertos_ac6.bat 
+[2026/05/04 周一  6:48:30.78] exit code 0 
+[2026/05/04 周一  7:07:01.65] run fix_freertos_ac6.bat 
+[2026/05/04 周一  7:07:03.82] exit code 0 
+[2026/05/04 周一  7:10:33.91] run fix_freertos_ac6.bat 
+[2026/05/04 周一  7:10:36.01] exit code 0 
+[2026/05/04 周一  7:55:29.19] run fix_freertos_ac6.bat 
+[2026/05/04 周一  7:55:31.72] exit code 0 
+[2026/05/04 周一  8:16:17.11] run fix_freertos_ac6.bat 
+[2026/05/04 周一  8:16:19.35] exit code 0 
+[2026/05/05 周二 15:32:08.61] run fix_freertos_ac6.bat 
+[2026/05/05 周二 15:32:11.13] exit code 0 
+[2026/05/05 周二 15:32:47.85] run fix_freertos_ac6.bat 
+[2026/05/05 周二 15:32:50.00] exit code 0 
+[2026/05/05 周二 15:33:37.62] run fix_freertos_ac6.bat 
+[2026/05/05 周二 15:33:39.85] exit code 0 
+[2026/05/05 周二 15:35:03.48] run fix_freertos_ac6.bat 
+[2026/05/05 周二 15:35:05.68] exit code 0 
+[2026/05/05 周二 15:46:54.34] run fix_freertos_ac6.bat 
+[2026/05/05 周二 15:46:56.59] exit code 0 
+[2026/05/05 周二 16:42:37.84] run fix_freertos_ac6.bat 
+[2026/05/05 周二 16:42:40.31] exit code 0 
+[2026/05/05 周二 16:53:00.83] run fix_freertos_ac6.bat 
+[2026/05/05 周二 16:53:03.12] exit code 0 
+[2026/05/05 周二 16:54:45.86] run fix_freertos_ac6.bat 
+[2026/05/05 周二 16:54:48.14] exit code 0 
+[2026/05/05 周二 17:13:03.30] run fix_freertos_ac6.bat 
+[2026/05/05 周二 17:13:05.63] exit code 0 
+[2026/05/05 周二 17:25:11.02] run fix_freertos_ac6.bat 
+[2026/05/05 周二 17:25:13.38] exit code 0 
+[2026/05/05 周二 17:28:31.13] run fix_freertos_ac6.bat 
+[2026/05/05 周二 17:28:33.45] exit code 0 
+[2026/05/05 周二 17:31:33.17] run fix_freertos_ac6.bat 
+[2026/05/05 周二 17:31:35.59] exit code 0 
+[2026/05/05 周二 18:38:34.76] run fix_freertos_ac6.bat 
+[2026/05/05 周二 18:38:37.27] exit code 0 
+[2026/05/05 周二 18:42:36.31] run fix_freertos_ac6.bat 
+[2026/05/05 周二 18:42:38.62] exit code 0 
+[2026/05/05 周二 18:45:48.27] run fix_freertos_ac6.bat 
+[2026/05/05 周二 18:45:50.67] exit code 0 
+[2026/05/05 周二 18:54:23.14] run fix_freertos_ac6.bat 
+[2026/05/05 周二 18:54:25.55] exit code 0 
+[2026/05/05 周二 18:58:01.27] run fix_freertos_ac6.bat 
+[2026/05/05 周二 18:58:03.61] exit code 0 
+[2026/05/05 周二 19:16:10.76] run fix_freertos_ac6.bat 
+[2026/05/05 周二 19:16:13.05] exit code 0 
+[2026/05/05 周二 19:18:30.21] run fix_freertos_ac6.bat 
+[2026/05/05 周二 19:18:32.57] exit code 0 
+[2026/05/05 周二 19:28:05.22] run fix_freertos_ac6.bat 
+[2026/05/05 周二 19:28:07.50] exit code 0 
+[2026/05/05 周二 21:48:00.35] run fix_freertos_ac6.bat 
+[2026/05/05 周二 21:48:03.01] exit code 0 
+[2026/05/05 周二 21:54:34.72] run fix_freertos_ac6.bat 
+[2026/05/05 周二 21:54:37.20] exit code 0 
+[2026/05/05 周二 22:01:21.27] run fix_freertos_ac6.bat 
+[2026/05/05 周二 22:01:23.68] exit code 0 
+[2026/05/05 周二 22:06:15.38] run fix_freertos_ac6.bat 
+[2026/05/05 周二 22:06:17.66] exit code 0 
+[2026/05/05 周二 22:12:00.06] run fix_freertos_ac6.bat 
+[2026/05/05 周二 22:12:02.33] exit code 0 
+[2026/05/05 周二 22:26:51.26] run fix_freertos_ac6.bat 
+[2026/05/05 周二 22:26:53.81] exit code 0 
+[2026/05/05 周二 22:37:54.95] run fix_freertos_ac6.bat 
+[2026/05/05 周二 22:37:57.25] exit code 0 
+[2026/05/05 周二 23:03:37.13] run fix_freertos_ac6.bat 
+[2026/05/05 周二 23:03:39.50] exit code 0 
+[2026/05/05 周二 23:44:48.53] run fix_freertos_ac6.bat 
+[2026/05/05 周二 23:44:50.93] exit code 0 
+[2026/05/05 周二 23:54:47.72] run fix_freertos_ac6.bat 
+[2026/05/05 周二 23:54:50.71] exit code 0 
+[2026/05/06 周三  0:06:11.78] run fix_freertos_ac6.bat 
+[2026/05/06 周三  0:06:14.36] exit code 0 
+[2026/05/06 周三  0:24:56.53] run fix_freertos_ac6.bat 
+[2026/05/06 周三  0:24:58.93] exit code 0 
+[2026/05/06 周三  1:04:12.37] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:04:14.84] exit code 0 
+[2026/05/06 周三  1:15:13.02] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:15:15.32] exit code 0 
+[2026/05/06 周三  1:18:32.42] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:18:34.71] exit code 0 
+[2026/05/06 周三  1:29:39.55] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:29:41.88] exit code 0 
+[2026/05/06 周三  1:33:40.43] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:33:42.82] exit code 0 
+[2026/05/06 周三  1:36:49.97] run fix_freertos_ac6.bat 
+[2026/05/06 周三  1:36:52.24] exit code 0 
+[2026/05/06 周三  2:25:47.56] run fix_freertos_ac6.bat 
+[2026/05/06 周三  2:25:49.96] exit code 0 
+[2026/05/06 周三 15:07:20.55] run fix_freertos_ac6.bat 
+[2026/05/06 周三 15:07:24.27] exit code 0 
+[2026/05/10 周日 23:39:03.63] run fix_freertos_ac6.bat 
+[2026/05/10 周日 23:39:05.96] exit code 0 
+[2026/05/10 周日 23:39:14.08] run fix_freertos_ac6.bat 
+[2026/05/10 周日 23:39:16.34] exit code 0 
+[2026/05/10 周日 23:55:07.98] run fix_freertos_ac6.bat 
+[2026/05/10 周日 23:55:11.49] exit code 0 
+[2026/05/10 周日 23:57:11.80] run fix_freertos_ac6.bat 
+[2026/05/10 周日 23:57:14.12] exit code 0 
+[2026/05/11 周一  0:05:17.11] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:05:19.70] exit code 0 
+[2026/05/11 周一  0:06:15.01] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:06:17.21] exit code 0 
+[2026/05/11 周一  0:06:55.08] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:06:57.31] exit code 0 
+[2026/05/11 周一  0:12:12.81] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:12:15.05] exit code 0 
+[2026/05/11 周一  0:17:44.85] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:17:47.06] exit code 0 
+[2026/05/11 周一  0:25:54.59] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:25:56.82] exit code 0 
+[2026/05/11 周一  0:27:23.27] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:27:25.47] exit code 0 
+[2026/05/11 周一  0:27:36.53] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:27:38.73] exit code 0 
+[2026/05/11 周一  0:29:25.16] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:29:27.45] exit code 0 
+[2026/05/11 周一  0:31:43.62] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:31:45.88] exit code 0 
+[2026/05/11 周一  0:34:51.03] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:34:53.28] exit code 0 
+[2026/05/11 周一  0:48:50.19] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:48:52.42] exit code 0 
+[2026/05/11 周一  0:51:20.30] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:51:22.92] exit code 0 
+[2026/05/11 周一  0:51:40.79] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:51:42.96] exit code 0 
+[2026/05/11 周一  0:56:33.46] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:56:36.12] exit code 0 
+[2026/05/11 周一  0:57:16.91] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:57:19.15] exit code 0 
+[2026/05/11 周一  0:57:46.52] run fix_freertos_ac6.bat 
+[2026/05/11 周一  0:57:48.73] exit code 0 
+[2026/05/11 周一  1:07:32.07] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:07:34.48] exit code 0 
+[2026/05/11 周一  1:11:41.81] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:11:44.11] exit code 0 
+[2026/05/11 周一  1:14:55.19] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:14:57.50] exit code 0 
+[2026/05/11 周一  1:30:20.31] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:30:22.64] exit code 0 
+[2026/05/11 周一  1:37:51.02] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:37:53.25] exit code 0 
+[2026/05/11 周一  1:40:33.32] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:40:35.60] exit code 0 
+[2026/05/11 周一  1:45:12.81] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:45:15.17] exit code 0 
+[2026/05/11 周一  1:47:32.63] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:47:34.91] exit code 0 
+[2026/05/11 周一  1:49:33.52] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:49:35.80] exit code 0 
+[2026/05/11 周一  1:51:09.18] run fix_freertos_ac6.bat 
+[2026/05/11 周一  1:51:11.53] exit code 0 
+[2026/05/11 周一  2:36:26.56] run fix_freertos_ac6.bat 
+[2026/05/11 周一  2:36:28.91] exit code 0 
+[2026/05/11 周一  3:10:19.99] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:10:22.26] exit code 0 
+[2026/05/11 周一  3:11:16.29] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:11:18.64] exit code 0 
+[2026/05/11 周一  3:20:34.12] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:20:36.64] exit code 0 
+[2026/05/11 周一  3:24:13.82] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:24:16.20] exit code 0 
+[2026/05/11 周一  3:26:43.40] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:26:45.74] exit code 0 
+[2026/05/11 周一  3:28:54.72] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:28:57.07] exit code 0 
+[2026/05/11 周一  3:52:14.55] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:52:16.81] exit code 0 
+[2026/05/11 周一  3:53:31.53] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:53:33.74] exit code 0 
+[2026/05/11 周一  3:55:57.95] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:56:00.14] exit code 0 
+[2026/05/11 周一  3:58:25.42] run fix_freertos_ac6.bat 
+[2026/05/11 周一  3:58:27.69] exit code 0 
+[2026/05/11 周一  4:17:43.20] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:17:45.60] exit code 0 
+[2026/05/11 周一  4:19:35.99] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:19:38.18] exit code 0 
+[2026/05/11 周一  4:21:20.16] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:21:22.41] exit code 0 
+[2026/05/11 周一  4:27:51.58] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:27:53.75] exit code 0 
+[2026/05/11 周一  4:29:04.28] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:29:06.46] exit code 0 
+[2026/05/11 周一  4:30:44.86] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:30:47.03] exit code 0 
+[2026/05/11 周一  4:31:53.00] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:31:55.14] exit code 0 
+[2026/05/11 周一  4:35:35.20] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:35:37.36] exit code 0 
+[2026/05/11 周一  4:39:17.09] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:39:19.23] exit code 0 
+[2026/05/11 周一  4:44:21.47] run fix_freertos_ac6.bat 
+[2026/05/11 周一  4:44:23.64] exit code 0 
+[2026/05/11 周一  6:01:34.39] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:01:36.62] exit code 0 
+[2026/05/11 周一  6:07:58.79] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:08:00.99] exit code 0 
+[2026/05/11 周一  6:14:49.28] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:14:51.46] exit code 0 
+[2026/05/11 周一  6:17:12.32] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:17:14.49] exit code 0 
+[2026/05/11 周一  6:21:48.46] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:21:50.70] exit code 0 
+[2026/05/11 周一  6:24:10.45] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:24:12.69] exit code 0 
+[2026/05/11 周一  6:31:27.26] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:31:29.52] exit code 0 
+[2026/05/11 周一  6:33:40.00] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:33:42.18] exit code 0 
+[2026/05/11 周一  6:34:54.48] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:34:56.67] exit code 0 
+[2026/05/11 周一  6:36:24.85] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:36:27.02] exit code 0 
+[2026/05/11 周一  6:43:59.25] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:44:01.42] exit code 0 
+[2026/05/11 周一  6:45:43.27] run fix_freertos_ac6.bat 
+[2026/05/11 周一  6:45:45.48] exit code 0 
+[2026/05/11 周一  7:14:23.79] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:14:25.98] exit code 0 
+[2026/05/11 周一  7:28:58.25] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:29:00.40] exit code 0 
+[2026/05/11 周一  7:30:58.28] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:31:00.45] exit code 0 
+[2026/05/11 周一  7:31:56.43] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:31:58.58] exit code 0 
+[2026/05/11 周一  7:38:36.30] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:38:38.55] exit code 0 
+[2026/05/11 周一  7:38:45.87] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:38:48.02] exit code 0 
+[2026/05/11 周一  7:40:08.66] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:40:10.82] exit code 0 
+[2026/05/11 周一  7:41:16.02] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:41:18.19] exit code 0 
+[2026/05/11 周一  7:41:28.35] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:41:30.51] exit code 0 
+[2026/05/11 周一  7:41:34.58] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:41:36.78] exit code 0 
+[2026/05/11 周一  7:42:45.93] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:42:48.13] exit code 0 
+[2026/05/11 周一  7:44:49.71] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:44:51.93] exit code 0 
+[2026/05/11 周一  7:46:59.20] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:47:01.39] exit code 0 
+[2026/05/11 周一  7:48:45.22] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:48:47.42] exit code 0 
+[2026/05/11 周一  7:48:53.55] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:48:55.75] exit code 0 
+[2026/05/11 周一  7:51:08.88] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:51:11.06] exit code 0 
+[2026/05/11 周一  7:52:28.05] run fix_freertos_ac6.bat 
+[2026/05/11 周一  7:52:30.22] exit code 0 
+[2026/05/16 周六 16:04:09.95] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:04:19.43] exit code 0 
+[2026/05/16 周六 16:04:41.92] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:04:46.42] exit code 0 
+[2026/05/16 周六 16:08:30.96] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:08:35.83] exit code 0 
+[2026/05/16 周六 16:22:31.47] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:22:36.42] exit code 0 
+[2026/05/16 周六 16:35:08.54] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:35:13.11] exit code 0 
+[2026/05/16 周六 16:40:52.11] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:40:56.71] exit code 0 
+[2026/05/16 周六 16:42:20.54] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:42:25.02] exit code 0 
+[2026/05/16 周六 16:43:48.55] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:43:53.07] exit code 0 
+[2026/05/16 周六 16:44:39.47] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:44:43.98] exit code 0 
+[2026/05/16 周六 16:46:01.48] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:46:06.06] exit code 0 
+[2026/05/16 周六 16:49:36.41] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:49:41.25] exit code 0 
+[2026/05/16 周六 16:57:04.94] run fix_freertos_ac6.bat 
+[2026/05/16 周六 16:57:09.55] exit code 0 
+[2026/05/16 周六 17:01:21.69] run fix_freertos_ac6.bat 
+[2026/05/16 周六 17:01:26.25] exit code 0 
+[2026/05/16 周六 17:18:54.21] run fix_freertos_ac6.bat 
+[2026/05/16 周六 17:18:59.15] exit code 0 
+[2026/05/16 周六 17:19:03.42] run fix_freertos_ac6.bat 
+[2026/05/16 周六 17:19:10.17] exit code 0 
+[2026/05/16 周六 17:27:52.63] run fix_freertos_ac6.bat 
+[2026/05/16 周六 17:27:57.57] exit code 0 
+[2026/05/16 周六 17:31:29.48] run fix_freertos_ac6.bat 
+[2026/05/16 周六 17:31:34.02] exit code 0 
+[2026/05/17 周日 17:52:17.84] run fix_freertos_ac6.bat 
+[2026/05/17 周日 17:52:36.31] exit code 0 
+[2026/05/17 周日 17:59:15.15] run fix_freertos_ac6.bat 
+[2026/05/17 周日 17:59:19.58] exit code 0 
+[2026/05/17 周日 18:47:24.10] run fix_freertos_ac6.bat 
+[2026/05/17 周日 18:47:28.97] exit code 0 
+[2026/05/17 周日 18:48:31.48] run fix_freertos_ac6.bat 
+[2026/05/17 周日 18:48:36.01] exit code 0 
+[2026/05/17 周日 19:03:23.73] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:03:28.57] exit code 0 
+[2026/05/17 周日 19:16:44.78] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:16:49.28] exit code 0 
+[2026/05/17 周日 19:18:46.46] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:18:50.88] exit code 0 
+[2026/05/17 周日 19:23:13.90] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:23:18.81] exit code 0 
+[2026/05/17 周日 19:25:59.01] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:26:03.47] exit code 0 
+[2026/05/17 周日 19:27:56.54] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:28:04.26] exit code 0 
+[2026/05/17 周日 19:30:28.67] run fix_freertos_ac6.bat 
+[2026/05/17 周日 19:30:33.10] exit code 0 
+[2026/05/17 周日 21:03:30.53] run fix_freertos_ac6.bat 
+[2026/05/17 周日 21:03:37.12] exit code 0 
+[2026/05/17 周日 21:10:50.74] run fix_freertos_ac6.bat 
+[2026/05/17 周日 21:10:55.30] exit code 0 
+[2026/05/17 周日 21:12:17.41] run fix_freertos_ac6.bat 
+[2026/05/17 周日 21:12:21.86] exit code 0 
+[2026/05/17 周日 21:13:46.84] run fix_freertos_ac6.bat 
+[2026/05/17 周日 21:13:54.72] exit code 0 
+[2026/05/17 周日 21:15:43.04] run fix_freertos_ac6.bat 
+[2026/05/17 周日 21:15:47.55] exit code 0 
+[2026/05/18 周一 17:29:51.80] run fix_freertos_ac6.bat 
+[2026/05/18 周一 17:29:58.94] exit code 0 
+[2026/05/20 周三 13:49:27.66] run fix_freertos_ac6.bat 
+[2026/05/20 周三 13:49:34.08] exit code 0 
+[2026/05/20 周三 14:15:22.60] run fix_freertos_ac6.bat 
+[2026/05/20 周三 14:15:27.42] exit code 0 
+[2026/05/20 周三 14:19:20.20] run fix_freertos_ac6.bat 
+[2026/05/20 周三 14:19:24.46] exit code 0 
+[2026/05/20 周三 14:21:48.10] run fix_freertos_ac6.bat 
+[2026/05/20 周三 14:21:52.45] exit code 0 
+[2026/05/20 周三 14:23:42.06] run fix_freertos_ac6.bat 
+[2026/05/20 周三 14:23:46.39] exit code 0 
+[2026/05/20 周三 21:34:32.48] run fix_freertos_ac6.bat 
+[2026/05/20 周三 21:34:37.26] exit code 0 
+[2026/05/20 周三 21:41:04.83] run fix_freertos_ac6.bat 
+[2026/05/20 周三 21:41:09.19] exit code 0 
+[2026/05/20 周三 21:44:06.60] run fix_freertos_ac6.bat 
+[2026/05/20 周三 21:44:11.04] exit code 0 
+[2026/05/21 周四 21:03:23.46] run fix_freertos_ac6.bat 
+[2026/05/21 周四 21:03:28.04] exit code 0 
+[2026/05/21 周四 21:04:57.62] run fix_freertos_ac6.bat 
+[2026/05/21 周四 21:05:01.97] exit code 0 
+[2026/05/21 周四 22:02:28.81] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:02:33.77] exit code 0 
+[2026/05/21 周四 22:04:21.60] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:04:26.03] exit code 0 
+[2026/05/21 周四 22:11:13.05] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:11:17.86] exit code 0 
+[2026/05/21 周四 22:21:28.42] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:21:33.26] exit code 0 
+[2026/05/21 周四 22:31:19.66] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:31:24.49] exit code 0 
+[2026/05/21 周四 22:38:02.92] run fix_freertos_ac6.bat 
+[2026/05/21 周四 22:38:07.43] exit code 0 
+[2026/05/22 周五 20:54:26.18] run fix_freertos_ac6.bat 
+[2026/05/22 周五 20:54:31.20] exit code 0 
+[2026/05/22 周五 21:07:28.33] run fix_freertos_ac6.bat 
+[2026/05/22 周五 21:07:33.13] exit code 0 
+[2026/05/22 周五 21:13:55.67] run fix_freertos_ac6.bat 
+[2026/05/22 周五 21:14:00.46] exit code 0 
+[2026/05/22 周五 21:19:56.10] run fix_freertos_ac6.bat 
+[2026/05/22 周五 21:20:00.91] exit code 0 
+[2026/05/22 周五 21:23:35.61] run fix_freertos_ac6.bat 
+[2026/05/22 周五 21:23:40.31] exit code 0 
+[2026/05/22 周五 21:27:32.19] run fix_freertos_ac6.bat 
+[2026/05/22 周五 21:27:36.56] exit code 0 
+[2026/05/22 周五 22:47:18.41] run fix_freertos_ac6.bat 
+[2026/05/22 周五 22:47:23.16] exit code 0 
+[2026/05/22 周五 22:53:29.83] run fix_freertos_ac6.bat 
+[2026/05/22 周五 22:53:34.70] exit code 0 
+[2026/05/22 周五 23:05:32.33] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:06:02.30] exit code 0 
+[2026/05/22 周五 23:22:27.96] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:22:32.73] exit code 0 
+[2026/05/22 周五 23:26:23.61] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:26:27.98] exit code 0 
+[2026/05/22 周五 23:28:29.58] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:28:33.99] exit code 0 
+[2026/05/22 周五 23:29:05.30] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:29:09.65] exit code 0 
+[2026/05/22 周五 23:34:37.78] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:34:42.57] exit code 0 
+[2026/05/22 周五 23:38:07.27] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:38:13.53] exit code 0 
+[2026/05/22 周五 23:40:08.45] run fix_freertos_ac6.bat 
+[2026/05/22 周五 23:40:12.82] exit code 0 
+[2026/05/23 周六  0:15:27.57] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:15:32.33] exit code 0 
+[2026/05/23 周六  0:23:40.96] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:23:45.42] exit code 0 
+[2026/05/23 周六  0:25:39.91] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:25:44.27] exit code 0 
+[2026/05/23 周六  0:26:58.32] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:27:02.63] exit code 0 
+[2026/05/23 周六  0:30:01.29] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:30:05.67] exit code 0 
+[2026/05/23 周六  0:35:59.80] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:36:08.27] exit code 0 
+[2026/05/23 周六  0:37:37.87] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:37:42.34] exit code 0 
+[2026/05/23 周六  0:39:46.23] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:39:50.59] exit code 0 
+[2026/05/23 周六  0:39:57.62] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:40:02.00] exit code 0 
+[2026/05/23 周六  0:49:16.57] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:49:21.32] exit code 0 
+[2026/05/23 周六  0:54:59.49] run fix_freertos_ac6.bat 
+[2026/05/23 周六  0:55:04.29] exit code 0 
+[2026/05/23 周六 16:59:59.77] run fix_freertos_ac6.bat 
+[2026/05/23 周六 17:00:05.24] exit code 0 
+[2026/05/23 周六 18:41:14.20] run fix_freertos_ac6.bat 
+[2026/05/23 周六 18:41:19.38] exit code 0 
+[2026/05/23 周六 18:52:28.84] run fix_freertos_ac6.bat 
+[2026/05/23 周六 18:52:33.75] exit code 0 
+[2026/05/23 周六 19:08:17.82] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:08:22.64] exit code 0 
+[2026/05/23 周六 19:16:19.29] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:16:24.07] exit code 0 
+[2026/05/23 周六 19:22:14.35] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:22:25.98] exit code 0 
+[2026/05/23 周六 19:31:02.87] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:31:16.13] exit code 0 
+[2026/05/23 周六 19:37:16.37] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:37:28.21] exit code 0 
+[2026/05/23 周六 19:46:01.01] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:46:14.92] exit code 0 
+[2026/05/23 周六 19:57:52.23] run fix_freertos_ac6.bat 
+[2026/05/23 周六 19:57:57.13] exit code 0 
+[2026/05/23 周六 20:05:52.60] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:05:57.56] exit code 0 
+[2026/05/23 周六 20:10:15.41] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:10:19.93] exit code 0 
+[2026/05/23 周六 20:12:17.78] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:12:22.38] exit code 0 
+[2026/05/23 周六 20:17:26.95] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:17:31.55] exit code 0 
+[2026/05/23 周六 20:20:26.70] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:20:31.20] exit code 0 
+[2026/05/23 周六 20:28:08.67] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:28:13.27] exit code 0 
+[2026/05/23 周六 20:32:55.20] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:32:59.73] exit code 0 
+[2026/05/23 周六 20:44:07.70] run fix_freertos_ac6.bat 
+[2026/05/23 周六 20:44:12.59] exit code 0 
+[2026/05/23 周六 21:09:37.95] run fix_freertos_ac6.bat 
+[2026/05/23 周六 21:09:52.62] exit code 0 
+[2026/05/23 周六 21:13:24.02] run fix_freertos_ac6.bat 
+[2026/05/23 周六 21:13:36.03] exit code 0 
+[2026/05/31 周日  1:04:16.27] run fix_freertos_ac6.bat 
+[2026/05/31 周日  1:04:22.11] exit code 0 
+[2026/05/31 周日  1:07:54.11] run fix_freertos_ac6.bat 
+[2026/05/31 周日  1:07:59.00] exit code 0 
+[2026/05/31 周日  2:13:54.78] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:13:58.64] exit code 0 
+[2026/05/31 周日  2:14:14.59] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:14:18.20] exit code 0 
+[2026/05/31 周日  2:18:10.99] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:18:14.56] exit code 0 
+[2026/05/31 周日  2:18:59.73] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:19:03.24] exit code 0 
+[2026/05/31 周日  2:20:30.25] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:20:33.65] exit code 0 
+[2026/05/31 周日  2:26:46.84] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:26:50.66] exit code 0 
+[2026/05/31 周日  2:32:55.46] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:32:58.93] exit code 0 
+[2026/05/31 周日  2:45:52.96] run fix_freertos_ac6.bat 
+[2026/05/31 周日  2:45:56.40] exit code 0 
+[2026/05/31 周日 14:38:54.90] run fix_freertos_ac6.bat 
+[2026/05/31 周日 14:39:00.14] exit code 0 
+[2026/05/31 周日 14:50:06.94] run fix_freertos_ac6.bat 
+[2026/05/31 周日 14:50:12.36] exit code 0 
+[2026/05/31 周日 15:16:24.05] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:16:27.83] exit code 1 
+[2026/05/31 周日 15:18:27.56] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:18:30.05] exit code 1 
+[2026/05/31 周日 15:19:01.47] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:19:03.35] exit code 1 
+[2026/05/31 周日 15:19:43.04] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:19:44.96] exit code 1 
+[2026/05/31 周日 15:20:33.19] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:20:38.98] exit code 1 
+[2026/05/31 周日 15:27:29.43] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:27:31.24] exit code 1 
+[2026/05/31 周日 15:43:33.05] run fix_freertos_ac6.bat 
+[2026/05/31 周日 15:43:35.61] exit code 1 
+[2026/06/01 周一 15:56:11.17] run fix_freertos_ac6.bat 
+[2026/06/01 周一 15:56:13.25] exit code 1 
