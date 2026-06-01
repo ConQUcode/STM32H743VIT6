@@ -202,7 +202,7 @@ void DJIMotor(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		DJIMotorControl(); 
+//		DJIMotorControl(); 
 		FeiteMotorControl();
     osDelay(1);
   }

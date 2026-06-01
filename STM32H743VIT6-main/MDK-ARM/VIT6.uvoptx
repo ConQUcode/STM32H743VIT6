@@ -157,9 +157,9 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>208</LineNumber>
+          <LineNumber>224</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134220516</Address>
+          <Address>134220924</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
@@ -168,7 +168,7 @@
           <BreakIfRCount>1</BreakIfRCount>
           <Filename>..\APPLICATION\arm.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\VIT6\../APPLICATION/arm.c\208</Expression>
+          <Expression>\\VIT6\../APPLICATION/arm.c\224</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -315,7 +315,7 @@
         <Ww>
           <count>28</count>
           <WinNumber>1</WinNumber>
-          <ItemText>debug_move_target</ItemText>
+          <ItemText>debug_move_target,0x0A</ItemText>
         </Ww>
         <Ww>
           <count>29</count>
@@ -336,6 +336,16 @@
           <count>32</count>
           <WinNumber>1</WinNumber>
           <ItemText>remote_data,0x0A</ItemText>
+        </Ww>
+        <Ww>
+          <count>33</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>\\VIT6\../MOUDLE/remote/remote.c\remote_data-&gt;rocker_l1</ItemText>
+        </Ww>
+        <Ww>
+          <count>34</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>motor_j1,0x10</ItemText>
         </Ww>
       </WatchWindow1>
       <WatchWindow2>

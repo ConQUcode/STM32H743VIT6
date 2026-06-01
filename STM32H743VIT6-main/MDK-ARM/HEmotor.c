@@ -3,15 +3,6 @@
 static uint8_t he_idx = 0;
 static HEMotor_Instance *he_motor_instances[HE_MOTOR_CNT] = {NULL};
 
-/**
- * @brief ÊØ»¤½ø³Ì»Øµ÷
- */
-static void HEMotorLostCallback(void *motor_ptr)
-{
-    HEMotor_Instance *motor = (HEMotor_Instance *)motor_ptr;
-    motor->ref.stop_flag = HE_STOP;
-}
-
 HEMotor_Instance *HEMotorInit(HEMotor_Init_Config_s *config)
 {
 if (config == NULL || he_idx >= HE_MOTOR_CNT) return NULL;
@@ -19,40 +10,32 @@ if (config == NULL || he_idx >= HE_MOTOR_CNT) return NULL;
     HEMotor_Instance *motor = (HEMotor_Instance *)malloc(sizeof(HEMotor_Instance));
     memset(motor, 0, sizeof(HEMotor_Instance));
 
-    // ÏÔÊ½¹¹Ôì BSP ´®¿Ú³õÊ¼»¯½á¹¹Ìå
+    // ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ BSP ï¿½ï¿½ï¿½Ú³ï¿½Ê¼ï¿½ï¿½ï¿½á¹¹ï¿½ï¿½
     USART_Init_Config_s bsp_usart_config = {
-        .usart_handle = config->huart,       // È·±£ÕâÀïÄÃµ½ÁË &huart2
+        .usart_handle = config->huart,       // È·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ &huart2
         .recv_buff_size = HE_MAX_BUFFSIZE,
         .module_callback = NULL
     };
     
-    // µ÷ÓÃ BSP ×¢²áº¯Êı
+    // ï¿½ï¿½ï¿½ï¿½ BSP ×¢ï¿½áº¯ï¿½ï¿½
     motor->usart_instance = USARTRegister(&bsp_usart_config);
 
     motor->config = config->motor_config;
     motor->ref = config->motor_ref;
-
-    // ×¢²áÊØ»¤½ø³Ì
-    Daemon_Init_Config_s daemon_config = {
-        .callback = HEMotorLostCallback,
-        .owner_id = motor,
-        .reload_count = 5, // 50ms³¬Ê±
-    };
-    motor->daemon_instance = DaemonRegister(&daemon_config);
 
     he_motor_instances[he_idx++] = motor;
     return motor;
 }
 
 /**
- * @brief ·¢ËÍÖ¸Áî·â×°
+ * @brief ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½×°
  */
 static void HEMotorSendPacket(HEMotor_Instance *motor, uint8_t cmd, uint8_t *params, uint8_t param_len)
 {
-    // Length = ID(1) + Length×Ö¶Î±¾Éí(1) + Cmd(1) + ²ÎÊı(N)
+    // Length = ID(1) + Lengthï¿½Ö¶Î±ï¿½ï¿½ï¿½(1) + Cmd(1) + ï¿½ï¿½ï¿½ï¿½(N)
     uint8_t length = param_len + 3; 
-    // Total = Ö¡Í·(2) + ID(1) + Length(1) + Cmd(1) + ²ÎÊı(N) + Ğ£ÑéºÍ(1)
-    // Ò²¾ÍÊÇ Total = 2(Í·) + length + 1(Ğ£ÑéºÍ) = length + 3
+    // Total = Ö¡Í·(2) + ID(1) + Length(1) + Cmd(1) + ï¿½ï¿½ï¿½ï¿½(N) + Ğ£ï¿½ï¿½ï¿½(1)
+    // Ò²ï¿½ï¿½ï¿½ï¿½ Total = 2(Í·) + length + 1(Ğ£ï¿½ï¿½ï¿½) = length + 3
     uint8_t total_len = length + 3;  
     
     uint8_t *buf = motor->send_buff;
@@ -64,7 +47,7 @@ static void HEMotorSendPacket(HEMotor_Instance *motor, uint8_t cmd, uint8_t *par
     buf[3] = length;
     buf[4] = cmd;
 
-    // Ğ£ÑéºÍÀÛ¼Ó´Ó ID ¿ªÊ¼£ºbuf[2], buf[3], buf[4] ...
+    // Ğ£ï¿½ï¿½ï¿½ï¿½Û¼Ó´ï¿½ ID ï¿½ï¿½Ê¼ï¿½ï¿½buf[2], buf[3], buf[4] ...
     checksum_total = buf[2] + buf[3] + buf[4];
 
     for (uint8_t i = 0; i < param_len; i++) {
@@ -72,7 +55,7 @@ static void HEMotorSendPacket(HEMotor_Instance *motor, uint8_t cmd, uint8_t *par
         checksum_total += params[i];
     }
 
-    // Checksum = ~(ÀÛ¼ÓºÍµÄµÍ8Î»)
+    // Checksum = ~(ï¿½Û¼ÓºÍµÄµï¿½8Î»)
     buf[5 + param_len] = (uint8_t)(~(checksum_total & 0xFF));
 
     USARTSend(motor->usart_instance, buf, total_len, USART_TRANSFER_BLOCKING);
@@ -84,16 +67,25 @@ void HEMotorMoveTimeWrite(HEMotor_Instance *motor, uint16_t pos, uint16_t time)
 
    
     uint8_t params[4];
-    params[0] = pos & 0xFF;         // ½Ç¶ÈµÍÎ»
-    params[1] = (pos >> 8) & 0xFF;  // ½Ç¶È¸ßÎ»
-    params[2] = time & 0xFF;        // Ê±¼äµÍÎ»
-    params[3] = (time >> 8) & 0xFF; // Ê±¼ä¸ßÎ»
+    params[0] = pos & 0xFF;         // ï¿½Ç¶Èµï¿½Î»
+    params[1] = (pos >> 8) & 0xFF;  // ï¿½Ç¶È¸ï¿½Î»
+    params[2] = time & 0xFF;        // Ê±ï¿½ï¿½ï¿½Î»
+    params[3] = (time >> 8) & 0xFF; // Ê±ï¿½ï¿½ï¿½Î»
 
     HEMotorSendPacket(motor, SERVO_MOVE_TIME_WRITE, params, 4);
 }
 
 void HEMotorControl(void)
 {
+    static uint32_t last_send_tick = 0;
+    uint32_t now = HAL_GetTick();
+
+    // é™åˆ¶å‘é€é¢‘ç‡ä¸º 50Hz (20ms ä¸€æ¬¡)ï¼Œé¿å… 1kHz é«˜é¢‘åˆ·æ–°å¯¼è‡´èˆµæœºé€»è¾‘é”æ­»æˆ–ä¸²å£å¸¦å®½é¥±å’Œ
+    if (now - last_send_tick < 20) {
+        return;
+    }
+    last_send_tick = now;
+
     for (int i = 0; i < he_idx; i++) {
         if (he_motor_instances[i] != NULL && he_motor_instances[i]->ref.stop_flag == HE_ENABLED) {
             HEMotorMoveTimeWrite(he_motor_instances[i], 

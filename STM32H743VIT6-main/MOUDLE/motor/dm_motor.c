@@ -91,6 +91,24 @@ static void DMPackMITFrameWithGains(DMMotor_Instance *motor, float pos, float ve
 static void DMPackPosVelFrame(DMMotor_Instance *motor, float angle_out, float speed_out);
 
 /**
+ * @brief 打包自定义位置速度模式控制帧 (8 字节)
+ * @param motor   电机实例
+ * @param pos     目标位置 (rad)
+ * @param vel     速度限制 (rad/s)
+ * @note  帧格式: [p_des (4字节 float, 小端)][v_des (4字节 float, 小端)]
+ */
+static void DMPackPosVelCustomFrame(DMMotor_Instance *motor, float pos, float vel);
+
+static void DMPackPosVelCustomFrame(DMMotor_Instance *motor, float pos, float vel)
+{
+    FDCAN_Instance *fdcan = motor->motor_fdcan_instance;
+    
+    /* 采用 memcpy 以保证浮点数到字节数组的正确转换 (小端) */
+    memcpy(&fdcan->tx_buff[0], &pos, 4);
+    memcpy(&fdcan->tx_buff[4], &vel, 4);
+}
+
+/**
  * @brief 打包速度模式控制帧 (8 字节)
  * @param motor       电机实例
  * @param speed_out   速度环 PID 输出 (度/秒),映射为 velocity_des
@@ -490,23 +508,20 @@ static void DMPackMITFrameWithGains(DMMotor_Instance *motor, float pos, float ve
  * @note  此模式下电机内部执行三环串级,驱动只需给目标位置和目标速度。
  *        位置/速度使用相同的 uint16 映射方式 (与 MIT 一致)。
  */
-static void DMPackPosVelFrame(DMMotor_Instance *motor, float angle_out, float speed_out)
+/**
+ * @brief 打包位置速度模式控制帧 (8 字节)
+ * @param motor   电机实例
+ * @param pos     目标位置 (rad)
+ * @param vel     速度限制 (rad/s)
+ * @note  帧格式: [p_des (4字节 float, 小端)][v_des (4字节 float, 小端)]
+ */
+static void DMPackPosVelFrame(DMMotor_Instance *motor, float pos, float vel)
 {
-    DM_MIT_Params_s *p = &motor->mit_params;
     FDCAN_Instance *fdcan = motor->motor_fdcan_instance;
-    uint16_t pos_des, vel_des;
-
-    pos_des = DMFloatToUint(angle_out, -p->p_max, p->p_max, 16);
-    vel_des = DMFloatToUint(speed_out, -p->v_max, p->v_max, 16);
-
-    fdcan->tx_buff[0] = (uint8_t)(pos_des >> 8);
-    fdcan->tx_buff[1] = (uint8_t)(pos_des & 0xFF);
-    fdcan->tx_buff[2] = (uint8_t)(vel_des >> 8);
-    fdcan->tx_buff[3] = (uint8_t)(vel_des & 0xFF);
-    fdcan->tx_buff[4] = 0;   /* 保留 */
-    fdcan->tx_buff[5] = 0;   /* 保留 */
-    fdcan->tx_buff[6] = 0;   /* 保留 */
-    fdcan->tx_buff[7] = 0xFC; /* 使能 */
+    
+    /* 采用 memcpy 以保证浮点数到字节数组的正确转换 (小端) */
+    memcpy(&fdcan->tx_buff[0], &pos, 4);
+    memcpy(&fdcan->tx_buff[4], &vel, 4);
 }
 
 /**
@@ -892,9 +907,8 @@ DMMotor_Instance *DMMotorInit(Motor_Init_Config_s *config)
         return NULL;
     }
 
-    /* Step 9: 使能电机, 配置模式, 存入全局数组 */
-    DMMotorEnable(motor);
-    DMSendModeConfig(motor);
+    /* Step 9: 仅注册实例，不在驱动初始化阶段自动使能/改模式。
+     * 电机模式完全依赖上位机保存结果，由应用层自行设置发送 ID 和使能。 */
     dm_motor_instances[dm_idx++] = motor;
 
     /* 初始化成功 */
@@ -923,8 +937,7 @@ void DMMotorEnable(DMMotor_Instance *motor)
     DMSendFrame(fdcan);
     memset(fdcan->tx_buff, 0, 7);
 
-    /* 发送模式配置帧 */
-    DMSendModeConfig(motor);
+
 }
 
 void DMMotorStop(DMMotor_Instance *motor)
@@ -972,6 +985,19 @@ void DMMotorSetRef(DMMotor_Instance *motor, float ref)
     if (motor == NULL)
         return;
     motor->motor_controller.pid_ref = ref;
+    
+    /* 如果是位置速度模式,同时更新内部 pos_ref */
+    if (motor->control_mode == DM_MODE_POS_VEL) {
+        motor->pos_ref = ref * DEGREE_2_RAD;
+    }
+}
+
+void DMMotorSetPosVelRef(DMMotor_Instance *motor, float pos, float vel)
+{
+    if (motor == NULL)
+        return;
+    motor->pos_ref = pos;
+    motor->vel_ref = fabsf(vel); // 速度限制始终为正
 }
 
 /**
@@ -1009,35 +1035,28 @@ void DMMotorReset(DMMotor_Instance *motor)
 void DMMotorSetControlMode(DMMotor_Instance *motor, DM_Control_Mode_e mode)
 {
     FDCAN_Instance *fdcan;
-    uint32_t base_id;  /* SlaveID (低 8 位) */
+    uint32_t base_id;
 
     if (motor == NULL || motor->motor_fdcan_instance == NULL)
         return;
 
-    motor->control_mode = mode;
     fdcan = motor->motor_fdcan_instance;
+    motor->control_mode = mode;
+    base_id = motor->motor_fdcan_instance->tx_id & 0xFF; /* 获取基础 SlaveID */
 
-    /* 从当前 tx_id 提取基础 SlaveID (取低 8 位)
-     * 例如: tx_id=0x101 → base_id=0x01 */
-    base_id = fdcan->tx_id & 0xFF;
-
-    /* 根据新模式设置 CAN ID 偏移 */
     switch (mode) {
-        case DM_MODE_MIT:
-            fdcan->tx_id = base_id;          /* 无偏移 */
-            break;
         case DM_MODE_POS_VEL:
-            fdcan->tx_id = base_id + 0x100;  /* 偏移 +0x100 */
+            fdcan->tx_id = base_id + 0x100;
             break;
         case DM_MODE_VEL:
-            fdcan->tx_id = base_id + 0x200;  /* 偏移 +0x200 */
+            fdcan->tx_id = base_id + 0x200;
             break;
         default:
-            fdcan->tx_id = base_id;          /* 未知模式默认 MIT */
+            fdcan->tx_id = base_id;
             break;
     }
-
-    g_dm_motor_debug.last_control_mode = (uint8_t)mode;
+ 
+    fdcan->txconf.Identifier = fdcan->tx_id; 
 }
 
 void DMMotorSetMITParams(DMMotor_Instance *motor, float kp, float kd)
@@ -1138,15 +1157,6 @@ void DMMotorControl(void)
 {
     size_t i;
     DMMotor_Instance *motor;
-    Motor_Control_Setting_s *setting;
-    Motor_Controller_s *ctrl;
-    DM_Motor_Measure_s *measure;
-    float pid_ref;          /* PID 参考值 (在串级计算中被逐级覆盖) */
-    float pid_measure;      /* PID 反馈值 (角度/速度/力矩) */
-    float angle_output;     /* 角度环 PID 输出 (度) → 打包为 position_des */
-    float speed_output;     /* 速度环 PID 输出 (度/秒) → 打包为 velocity_des */
-    float current_output;   /* 力矩环 PID 输出 (保留,暂未映射到控制帧) */
-    uint8_t needs_feedback; /* 是否需要等待新反馈 */
 
     g_dm_motor_debug.control_count++;
 
@@ -1156,132 +1166,33 @@ void DMMotorControl(void)
         if (motor == NULL || motor->motor_fdcan_instance == NULL)
             continue;
 
-        /* 获取电机各配置/控制器/测量值的快捷指针 */
-        setting  = &motor->motor_settings;
-        ctrl     = &motor->motor_controller;
-        measure  = &motor->measure;
-
-        needs_feedback = DMControlNeedsFreshFeedback(setting);
-
-        /* MIT 模式: 达妙电机需先收到控制帧才会回复反馈,
-         * 不能像 DJI 三环 PID 那样等 feedback_updated,
-         * DMControlMIT() 内部已处理无反馈的情况 */
-        if (motor->control_mode == DM_MODE_MIT) {
-            if (motor->stop_flag == MOTOR_STOP) {
-                memset(motor->motor_fdcan_instance->tx_buff, 0xFF, 7);
-                motor->motor_fdcan_instance->tx_buff[7] = 0xFD;
-            } else {
-                DMControlMIT(motor);
-            }
-
-            DMSendFrame(motor->motor_fdcan_instance);
-            motor->feedback_updated = 0U;
-            continue;
-        }
-
-        /* 初始化本周期变量 */
-        pid_ref        = ctrl->pid_ref;  /* 用户通过 DMMotorSetRef 设定的目标值 */
-        angle_output   = 0.0f;
-        speed_output   = 0.0f;
-        current_output = 0.0f;
-
-        /* ---- 三环 PID 串级计算 ---- */
-        if (!needs_feedback || motor->feedback_updated) {
-
-            /* 处理电机反转标志 */
-            if (setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
-                pid_ref = -pid_ref;
-
-            /* ====== 第一环: 位置环 (ANGLE PID) ====== */
-            /* 条件: close_loop_type 包含 ANGLE_LOOP 且 outer_loop 是角度环 */
-            if ((setting->close_loop_type & ANGLE_LOOP) &&
-                setting->outer_loop_type == ANGLE_LOOP) {
-
-                /* 选择反馈来源: 电机自身编码器 或 外部传感器 (如 IMU) */
-                if (setting->angle_feedback_source == OTHER_FEED)
-                    pid_measure = *ctrl->other_angle_feedback_ptr;
-                else
-                    pid_measure = measure->total_angle;  /* 累计总角度 (度) */
-
-                /* 反馈反向处理 */
-                if (setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
-                    pid_measure = -pid_measure;
-
-                /* 计算角度 PID,输出为速度目标 (度/秒) */
-                angle_output = PIDCalculate(&ctrl->angle_PID, pid_measure, pid_ref);
-                pid_ref = angle_output;  /* 传递给下一环 */
-            }
-
-            /* ====== 第二环: 速度环 (SPEED PID) ====== */
-            /* 条件: close_loop_type 包含 SPEED_LOOP 且 outer_loop 包含角度或速度 */
-            if ((setting->close_loop_type & SPEED_LOOP) &&
-                (setting->outer_loop_type & (ANGLE_LOOP | SPEED_LOOP))) {
-
-                /* 速度前馈 (如果有) */
-                if (setting->feedforward_flag & SPEED_FEEDFORWARD)
-                    pid_ref += *ctrl->speed_feedforward_ptr;
-
-                /* 选择反馈来源 */
-                if (setting->speed_feedback_source == OTHER_FEED)
-                    pid_measure = *ctrl->other_speed_feedback_ptr;
-                else
-                    pid_measure = measure->speed_aps;  /* 滤波后角速度 (度/秒) */
-
-                if (setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
-                    pid_measure = -pid_measure;
-
-                /* 计算速度 PID,输出为力矩/电流目标 */
-                speed_output = PIDCalculate(&ctrl->speed_PID, pid_measure, pid_ref);
-                pid_ref = speed_output;  /* 传递给下一环 */
-            }
-
-            /* ====== 第三环: 电流/力矩环 (CURRENT PID) ====== */
-            /* 电流前馈 (如果有) */
-            if (setting->feedforward_flag & CURRENT_FEEDFORWARD)
-                pid_ref += *ctrl->current_feedforward_ptr;
-
-            if (setting->close_loop_type & (CURRENT_LOOP | TORQUE_LOOP)) {
-                pid_measure = measure->torque_nm;  /* 滤波后力矩 */
-
-                if (setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
-                    pid_measure = -pid_measure;
-
-                current_output = PIDCalculate(&ctrl->current_PID, pid_measure, pid_ref);
-                pid_ref = current_output;  /* 最终输出 */
-            }
-
-            /* 更新调试信息 */
-            g_dm_motor_debug.last_control_ref = ctrl->pid_ref;
-            g_dm_motor_debug.last_control_set = (int16_t)pid_ref;
-        }
-        /* ---- PID 计算结束 ---- */
-
-        /* ---- 根据启停状态和控制模式打包并发送控制帧 ---- */
+        /* ---- 启停状态处理 ---- */
         if (motor->stop_flag == MOTOR_STOP) {
-            /* 停止状态: 发送失能帧 {0xFF*7, 0xFD}
-             * 注意: 电机收到后亮红灯失能,而非仅发零力矩。 */
+            /* 停止状态: 发送失能帧 {0xFF*7, 0xFD} */
             memset(motor->motor_fdcan_instance->tx_buff, 0xFF, 7);
             motor->motor_fdcan_instance->tx_buff[7] = 0xFD;
         } else {
-            /* 使能状态: 根据控制模式打包控制帧 */
+            /* 使能状态: 直接根据控制模式打包控制帧，不进行任何 host 端 PID 计算 */
             switch (motor->control_mode) {
                 case DM_MODE_POS_VEL:
-                    DMPackPosVelFrame(motor, angle_output, speed_output);
+                    /* 直接使用 pos_ref 和 vel_ref */
+                    DMPackPosVelFrame(motor, motor->pos_ref, motor->vel_ref);
                     break;
                 case DM_MODE_VEL:
-                    DMPackVelFrame(motor, speed_output);
+                    /* 速度模式下，直接使用 pid_ref 作为速度目标 */
+                    DMPackVelFrame(motor, motor->motor_controller.pid_ref);
                     break;
                 default:
-                    DMPackMITFrame(motor, angle_output, speed_output, current_output);
+                    /* MIT 模式下，直接使用 pid_ref 作为力矩目标 (t_ff)，KP/KD 设为 0 */
+                    DMPackMITFrameWithGains(motor, 0.0f, 0.0f, motor->motor_controller.pid_ref, 0.0f, 0.0f);
                     break;
             }
         }
 
-        /* 发送控制帧 (无论是否停止都要发,因为达妙需要收到帧才回复反馈) */
+        /* 确保持续下发控制帧 */
         DMSendFrame(motor->motor_fdcan_instance);
 
-        /* 清零反馈标志: 等待下次 CAN 中断置位 */
-        if (needs_feedback)
-            motor->feedback_updated = 0U;
+        /* 仅在收到反馈时由中断置 1，此处手动清零不影响发送 */
+        motor->feedback_updated = 0U;
     }
 }

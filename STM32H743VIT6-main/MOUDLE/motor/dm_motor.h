@@ -216,7 +216,7 @@
  */
 typedef enum {
     DM_MODE_MIT     = 0,  /**< MIT 混合控制模式 (位置+速度+力矩并联,最常用) */
-    DM_MODE_POS_VEL = 1,  /**< 位置速度串级模式 (电机内部三环串级) */
+    DM_MODE_POS_VEL = 1,  /**< 位置速度串级模式 (CAN ID +0x100, float p_des, float v_des) */
     DM_MODE_VEL     = 2,  /**< 纯速度模式 (电机内部速度环) */
 } DM_Control_Mode_e;
 
@@ -302,6 +302,8 @@ typedef struct {
     uint32_t feed_cnt;                             /**< 喂狗计数器 (DWT 时间戳) */
     float    dt;                                   /**< 距上次反馈的时间间隔 (秒) */
     int16_t  last_set;                             /**< 上一次的控制输出值 (调试用) */
+    float    pos_ref;                              /**< 位置期望值 (rad), 用于 POS_VEL 模式 */
+    float    vel_ref;                              /**< 速度期望值 (rad/s), 用于 POS_VEL 模式 */
     uint8_t  feedback_initialized;                 /**< 反馈初始化完成标志 */
     uint8_t  feedback_updated;                     /**< 本次控制周期是否收到新反馈 */
 } DMMotor_Instance;
@@ -483,6 +485,15 @@ void DMMotorSetMITParams(DMMotor_Instance *motor, float kp, float kd);
  * @param max_acc_rad_s2 最大角加速度 (rad/s^2)
  */
 void DMMotorSetMITProfile(DMMotor_Instance *motor, float max_vel_rad_s, float max_acc_rad_s2);
+
+/**
+ * @brief   设置位置速度模式的参考值
+ * @param   motor  电机实例指针
+ * @param   pos    目标位置 (rad)
+ * @param   vel    最大速度限制 (rad/s)
+ * @note    仅在 DM_MODE_POS_VEL 模式下有效。
+ */
+void DMMotorSetPosVelRef(DMMotor_Instance *motor, float pos, float vel);
 
 /**
  * @brief   发送模式配置命令到电机 (通过 CAN ID 0x7FF)
