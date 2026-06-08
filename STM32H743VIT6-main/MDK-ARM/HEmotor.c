@@ -80,8 +80,8 @@ void HEMotorControl(void)
     static uint32_t last_send_tick = 0;
     uint32_t now = HAL_GetTick();
 
-    // 限制发送频率为 50Hz (20ms 一次)，避免 1kHz 高频刷新导致舵机逻辑锁死或串口带宽饱和
-    if (now - last_send_tick < 20) {
+    // 限制发送频率为 100Hz (10ms 一次)
+    if (now - last_send_tick < 10) {
         return;
     }
     last_send_tick = now;

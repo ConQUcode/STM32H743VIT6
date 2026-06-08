@@ -74,6 +74,8 @@ static volatile struct {
     uint8_t sw;                  /* 本周期读到的拨杆档位 */
     uint16_t ik_ok_count;        /* IK 成功次数 */
     uint16_t ik_fail_count;      /* IK 失败次数 (含超限) */
+    float he_cmd_pos;            /* 当前 HE 发送值 */
+    float he_follow_deg;         /* HE 跟随使用的 J1 角度 */
 } arm_debug;
 
 /* ===================== 辅助函数 ===================== */
@@ -193,7 +195,7 @@ void Arm_Task(void)
         target_angles = current_angles;
         DMMotorSetPosVelRef(motor_j1, target_angles.j1 * DEGREE_2_RAD, 0.0f);
     } else if (sw == 2) {
-        float j1_step_rad = (float)remote_data->rocker_r1 / 660.0f * 0.03f;
+        float j1_step_rad = (float)remote_data->rocker_r1 / 660.0f * 0.003f;
 
         if (fabsf(j1_step_rad) < 0.0002f)
             j1_step_rad = 0.0f;
@@ -210,14 +212,16 @@ void Arm_Task(void)
 
     arm_debug.target = target_angles;
 
-    /* HE 舵机按 J1 目标角度反向跟随：发送值减少方向转动
-     * 当前达妙控制以发送目标为主，若反馈角度不持续更新，用 target_angles 可保证 HE 持续跟随命令变化。 */
+    /* HE 舵机按 J1 目标角度同向跟随：若方向仍不对，再改回减号即可 */
     if (motor_he) {
-        float he_pos = HE_INIT_POS - target_angles.j1 * HE_RAW_PER_DEG;
+        float he_follow_deg = target_angles.j1;
+        float he_pos = HE_INIT_POS + he_follow_deg * HE_RAW_PER_DEG;
         if (he_pos > 1000.0f) he_pos = 1000.0f;
         if (he_pos < 0.0f) he_pos = 0.0f;
         motor_he->ref.position = (uint16_t)(he_pos + 0.5f);
-        motor_he->ref.time = 20;
+        motor_he->ref.time = 10;
+        arm_debug.he_follow_deg = he_follow_deg;
+        arm_debug.he_cmd_pos = he_pos;
     }
 
     /* DM 电机控制发送 (位置速度模式正常遥控) */
