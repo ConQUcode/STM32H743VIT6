@@ -323,6 +323,16 @@
           <WinNumber>1</WinNumber>
           <ItemText>motor_j1,0x10</ItemText>
         </Ww>
+        <Ww>
+          <count>35</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>motor_he</ItemText>
+        </Ww>
+        <Ww>
+          <count>36</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>arm_debug.he_cmd_pos</ItemText>
+        </Ww>
       </WatchWindow1>
       <WatchWindow2>
         <Ww>
