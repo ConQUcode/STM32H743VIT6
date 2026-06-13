@@ -11,6 +11,12 @@
 #include "general_def.h"
 #include <math.h>
 
+#define VACUUM_RELAY_GPIO_PORT GPIOB
+#define VACUUM_RELAY_GPIO_PIN  GPIO_PIN_6
+#define VACUUM_RELAY_ON_LEVEL  GPIO_PIN_RESET
+#define VACUUM_RELAY_OFF_LEVEL GPIO_PIN_SET
+#define VACUUM_REMOTE_SWITCH_ON 2U
+
 /* ===================== 电机实例 ===================== */
 
 static DMMotor_Instance *motor_j1;    /* 大臂 DM4340 */
@@ -76,9 +82,22 @@ static volatile struct {
     uint16_t ik_fail_count;      /* IK 失败次数 (含超限) */
     float he_cmd_pos;            /* 当前 HE 发送值 */
     float he_follow_deg;         /* HE 跟随使用的 J1 角度 */
+    uint8_t vacuum_on;
 } arm_debug;
 
 /* ===================== 辅助函数 ===================== */
+
+/* PB6 relay output: low = vacuum on, high = vacuum off. */
+static void Arm_VacuumSet(uint8_t enable)
+{
+    uint8_t on = (enable != 0U) ? 1U : 0U;
+
+    HAL_GPIO_WritePin(VACUUM_RELAY_GPIO_PORT,
+                      VACUUM_RELAY_GPIO_PIN,
+                      on ? VACUUM_RELAY_ON_LEVEL : VACUUM_RELAY_OFF_LEVEL);
+
+    arm_debug.vacuum_on = on;
+}
 
 /**
  * @brief 读取 3 个关节的当前角度
@@ -121,6 +140,8 @@ static void Arm_Compute2LWrist(Arm_JointAngles_t angles, float *x, float *y)
 
 void Arm_Init(void)
 {
+    Arm_VacuumSet(0U);
+
     /* ---- J1: DM4340 大臂电机 (模式) ---- */
     Motor_Init_Config_s dm_config = {
         .can_init_config = {
@@ -177,7 +198,14 @@ void Arm_Init(void)
 
 void Arm_Task(void)
 {
-    uint8_t sw = remote_data->switch_right;
+    uint8_t sw = 0U;
+
+    if (remote_data != NULL) {
+        sw = remote_data->switch_right;
+        Arm_VacuumSet((remote_data->switch_left == VACUUM_REMOTE_SWITCH_ON) ? 1U : 0U);
+    } else {
+        Arm_VacuumSet(0U);
+    }
 
     Arm_ReadJointAngles(&current_angles);
     arm_debug.current = current_angles;
@@ -194,7 +222,7 @@ void Arm_Task(void)
     if (sw == 1) {
         target_angles = current_angles;
         DMMotorSetPosVelRef(motor_j1, target_angles.j1 * DEGREE_2_RAD, 0.0f);
-    } else if (sw == 2) {
+    } else if ((sw == 2) && (remote_data != NULL)) {
         float j1_step_rad = (float)remote_data->rocker_r1 / 660.0f * 0.003f;
 
         if (fabsf(j1_step_rad) < 0.0002f)
