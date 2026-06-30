@@ -41,7 +41,7 @@
 "vit6\timers.o"
 "vit6\cmsis_os2.o"
 "vit6\heap_4.o"
-"vit6\port_1.o"
+"vit6\port.o"
 "vit6\usb_device.o"
 "vit6\usbd_desc.o"
 "vit6\usbd_cdc_if.o"

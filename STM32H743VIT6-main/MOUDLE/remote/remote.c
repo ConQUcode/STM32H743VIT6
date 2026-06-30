@@ -14,6 +14,10 @@
 Remote_Instance *remote_dev = NULL; 
 Remote_Data_s *remote_data = NULL;
 
+#define REMOTE_CONTROL_FRAME_LEN 3U
+#define REMOTE_CONTROL_BYTE1     0xA1U
+#define REMOTE_CONTROL_BYTE2     0xA2U
+
 // 引用外部在 freertos.c 中由 CubeMX 生成的任务句柄
 extern osThreadId_t Remot_TaskHandle; 
 
@@ -47,7 +51,29 @@ static void Remote_Parse(Remote_Instance *instance) {
             unread_len += REMOTE_RX_BUF_SIZE;
         }
         
-        // 如果攒着的未读内容连一个完整帧的长度(18字节)都不够，提前退出，等下一次中断唤醒
+        // 当前协议最短有效帧是 3 字节控制/重连命令 AA A1 A2
+        if (unread_len < (int16_t)REMOTE_CONTROL_FRAME_LEN) {
+            break;
+        }
+
+        uint8_t byte0 = data[instance->read_idx];
+        uint8_t byte1 = data[(instance->read_idx + 1U) % REMOTE_RX_BUF_SIZE];
+        uint8_t byte2 = data[(instance->read_idx + 2U) % REMOTE_RX_BUF_SIZE];
+
+        // 先滑动查找帧头，避免错位数据堵住后续有效帧
+        if (byte0 != REMOTE_HEADER) {
+            instance->read_idx = (instance->read_idx + 1U) % REMOTE_RX_BUF_SIZE;
+            continue;
+        }
+
+        // 3 字节控制/重连命令没有 0x55 帧尾，只做识别和消费，不更新摇杆数据
+        if (byte1 == REMOTE_CONTROL_BYTE1 && byte2 == REMOTE_CONTROL_BYTE2) {
+            instance->last_update_time = HAL_GetTick();
+            instance->read_idx = (instance->read_idx + REMOTE_CONTROL_FRAME_LEN) % REMOTE_RX_BUF_SIZE;
+            continue;
+        }
+
+        // 如果攒着的未读内容连一个完整主数据帧(18字节)都不够，提前退出，等下一次中断唤醒
         if (unread_len < REMOTE_FRAME_LEN) {
             break;
         }
