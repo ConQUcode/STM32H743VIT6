@@ -21,7 +21,7 @@
 #define CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE 1U
 #define CHASSIS_STEERING_STARTUP_HOLD_TICKS 50U
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
-#define CHASSIS_STEERING_SPEED_MAX_OUT 9000.0f
+#define CHASSIS_STEERING_SPEED_MAX_OUT 13000.0f
 #define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f
 #define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f
@@ -432,7 +432,7 @@ void ChassisInit()
                 .DeadBand          = 1,
             },
             .speed_PID = {
-                .Kp            = 50,
+                .Kp            = 60,
                 .Ki            = 3,
                 .Kd            = 0,
                 .Improve       = PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
@@ -705,7 +705,7 @@ void ChassisTask(void)
         // Left stick Y is used as the lateral channel.
         vy = (float)remote_data->rocker_l1 / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
         // 右摇杆 X轴 → 旋转角速度 vw
-        vw = 0;
+        vw = (float)remote_data->rocker_r_ / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR;
 
         // 死区
         if (fabsf(vx) < REMOTE_DEADBAND) vx = 0.0f;

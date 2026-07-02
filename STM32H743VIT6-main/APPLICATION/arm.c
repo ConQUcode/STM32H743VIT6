@@ -11,6 +11,12 @@
 #include "general_def.h"
 #include <math.h>
 
+#define VACUUM_RELAY_GPIO_PORT GPIOB
+#define VACUUM_RELAY_GPIO_PIN  GPIO_PIN_6
+#define VACUUM_RELAY_ON_LEVEL  GPIO_PIN_RESET
+#define VACUUM_RELAY_OFF_LEVEL GPIO_PIN_SET
+#define VACUUM_REMOTE_SWITCH_ON 2U
+
 /* ===================== 电机实例 ===================== */
 
 static DMMotor_Instance *motor_j1;    /* 大臂 DM4340 */
@@ -74,9 +80,24 @@ static volatile struct {
     uint8_t sw;                  /* 本周期读到的拨杆档位 */
     uint16_t ik_ok_count;        /* IK 成功次数 */
     uint16_t ik_fail_count;      /* IK 失败次数 (含超限) */
+    float he_cmd_pos;            /* 当前 HE 发送值 */
+    float he_follow_deg;         /* HE 跟随使用的 J1 角度 */
+    uint8_t vacuum_on;
 } arm_debug;
 
 /* ===================== 辅助函数 ===================== */
+
+/* PB6 relay output: low = vacuum on, high = vacuum off. */
+static void Arm_VacuumSet(uint8_t enable)
+{
+    uint8_t on = (enable != 0U) ? 1U : 0U;
+
+    HAL_GPIO_WritePin(VACUUM_RELAY_GPIO_PORT,
+                      VACUUM_RELAY_GPIO_PIN,
+                      on ? VACUUM_RELAY_ON_LEVEL : VACUUM_RELAY_OFF_LEVEL);
+
+    arm_debug.vacuum_on = on;
+}
 
 /**
  * @brief 读取 3 个关节的当前角度
@@ -119,6 +140,8 @@ static void Arm_Compute2LWrist(Arm_JointAngles_t angles, float *x, float *y)
 
 void Arm_Init(void)
 {
+    Arm_VacuumSet(0U);
+
     /* ---- J1: DM4340 大臂电机 (模式) ---- */
     Motor_Init_Config_s dm_config = {
         .can_init_config = {
@@ -175,7 +198,14 @@ void Arm_Init(void)
 
 void Arm_Task(void)
 {
-    uint8_t sw = remote_data->switch_right;
+    uint8_t sw = 0U;
+
+    if (remote_data != NULL) {
+        sw = remote_data->switch_right;
+        Arm_VacuumSet((remote_data->switch_left == VACUUM_REMOTE_SWITCH_ON) ? 1U : 0U);
+    } else {
+        Arm_VacuumSet(0U);
+    }
 
     Arm_ReadJointAngles(&current_angles);
     arm_debug.current = current_angles;
@@ -192,8 +222,8 @@ void Arm_Task(void)
     if (sw == 1) {
         target_angles = current_angles;
         DMMotorSetPosVelRef(motor_j1, target_angles.j1 * DEGREE_2_RAD, 0.0f);
-    } else if (sw == 2) {
-        float j1_step_rad = (float)remote_data->rocker_r1 / 660.0f * 0.03f;
+    } else if ((sw == 2) && (remote_data != NULL)) {
+        float j1_step_rad = (float)remote_data->rocker_r1 / 660.0f * 0.003f;
 
         if (fabsf(j1_step_rad) < 0.0002f)
             j1_step_rad = 0.0f;
@@ -210,14 +240,16 @@ void Arm_Task(void)
 
     arm_debug.target = target_angles;
 
-    /* HE 舵机按 J1 目标角度反向跟随：发送值减少方向转动
-     * 当前达妙控制以发送目标为主，若反馈角度不持续更新，用 target_angles 可保证 HE 持续跟随命令变化。 */
+    /* HE 舵机按 J1 目标角度同向跟随：若方向仍不对，再改回减号即可 */
     if (motor_he) {
-        float he_pos = HE_INIT_POS - target_angles.j1 * HE_RAW_PER_DEG;
+        float he_follow_deg = target_angles.j1;
+        float he_pos = HE_INIT_POS + he_follow_deg * HE_RAW_PER_DEG;
         if (he_pos > 1000.0f) he_pos = 1000.0f;
         if (he_pos < 0.0f) he_pos = 0.0f;
         motor_he->ref.position = (uint16_t)(he_pos + 0.5f);
-        motor_he->ref.time = 20;
+        motor_he->ref.time = 10;
+        arm_debug.he_follow_deg = he_follow_deg;
+        arm_debug.he_cmd_pos = he_pos;
     }
 
     /* DM 电机控制发送 (位置速度模式正常遥控) */
