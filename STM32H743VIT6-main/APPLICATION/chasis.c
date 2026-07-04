@@ -21,10 +21,10 @@
 #define CHASSIS_ID4_M3508_SPEED_DEADBAND 80.0f        // ID4 行走 3508 速度死区
 #define CHASSIS_STEERING_ANGLE_MAX_OUT 1500.0f        // 舵向角度环最大输出
 #define CHASSIS_STEERING_SPEED_MAX_OUT 20000.0f       // 舵向正常速度环最大输出
-#define CHASSIS_STEERING_SPEED_KP 8.5f                // 舵向正常速度环 Kp
+#define CHASSIS_STEERING_SPEED_KP 7.5f                // 舵向正常速度环 Kp
 #define CHASSIS_STEERING_SPEED_KI 0.001f              // 舵向正常速度环 Ki
 #define CHASSIS_STEERING_SPEED_KD 0.001f              // 舵向正常速度环 Kd
-#define CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT 0.0f    // 舵向正常速度环积分限幅
+#define CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT 100.0f    // 舵向正常速度环积分限幅
 #define CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC 0.08f    // 舵向正常速度环输出低通滤波 RC
 #define CHASSIS_STEERING_HOME_SPEED_REF 1200.0f       // 舵向归零时的速度给定
 #define CHASSIS_STEERING_HOME_SPEED_KP 3.5f           // 舵向归零速度环 Kp 6.5
@@ -47,7 +47,7 @@
 #define CHASSIS_STEERING_HOME_SETTLE_MS 1000U         // 归零后停稳等待时间
 #define CHASSIS_STEERING_HOME_TIMEOUT_MS 15000U       // 单个舵轮归零超时时间
 #define CHASSIS_STEERING_ALIGN_ENABLE 1U              // 舵轮归零后是否转到目标 ECD: 1=正常闭环, 0=停在归零点
-#define CHASSIS_STEERING_BREAK_IN_ENABLE 1U           // 舵向电机磨合开关: 1=四个舵向 3508 持续旋转, 0=正常底盘逻辑
+#define CHASSIS_STEERING_BREAK_IN_ENABLE 0U           // 舵向电机磨合开关: 1=四个舵向 3508 持续旋转, 0=正常底盘逻辑
 #define CHASSIS_STEERING_BREAK_IN_SPEED_REF 1000.0f    // 舵向电机磨合速度给定, 单位 deg/s, 反向磨合改成负数
 #define CHASSIS_STEERING_PHOTO_GATE_BLOCKED GPIO_PIN_RESET // 光电门遮挡电平
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f  // 停车对正时角速度死区
@@ -791,12 +791,12 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 1.7, // 3
+                .Kp            = 3.0, // 3
                 .Ki            = 0.27, // 0.5
                 .Kd            = 0.005,   // 0
                 .IntegralLimit = 3000,//5000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut        = 10000,
+                .MaxOut        = 15000,
             },
             .current_PID = {
                 .Kp            = 1, // 1
@@ -823,7 +823,7 @@ void ChassisInit()
 
     chassis_motor_config.can_init_config.tx_id                             = 1;
     chassis_motor_config.controller_param_init_config.speed_PID.Kp         = 1.7;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID1_M3508_SPEED_DEADBAND;
     motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
 
@@ -845,13 +845,13 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 3.5f,
+                .Kp                = 2.5f,
                 .Ki                = 0.01f,
                 .Kd                = 0.03f,
                 .CoefA             = 5,
                 .CoefB             = 0.1,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
-                .IntegralLimit     = 100,
+                .IntegralLimit     = 1000,
                 .MaxOut            = CHASSIS_STEERING_ANGLE_MAX_OUT,
                 .Derivative_LPF_RC = 0.001,
                 .DeadBand          = 1,
@@ -1157,13 +1157,12 @@ void ChassisTask(void)
     ChassisSteeringHomeTaskAll();
 
     if (remote_data != NULL) {
-        // Left stick X is mounted as the forward/back channel on this remote.
-        // Pushing forward makes rocker_l_ negative, so map it to positive vx.
-        vx = -(float)remote_data->rocker_l_ / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
-        // Left stick Y is used as the lateral channel.
-        vy = (float)remote_data->rocker_l1 / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
-        // 右摇杆 X轴 → 旋转角速度 vw
-        vw = (float)remote_data->rocker_r_ / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR;
+        // 左摇杆 Y 轴 -> 前后线速度 vx
+        vx = (float)remote_data->rocker_l1 / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        // 左摇杆 X 轴 -> 左右线速度 vy
+        vy = (float)remote_data->rocker_l_ / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        // 拨轮 -> 旋转角速度 vw
+        vw = (float)remote_data->dial / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR;
 
         // 死区
         if (fabsf(vx) < REMOTE_DEADBAND) vx = 0.0f;

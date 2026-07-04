@@ -80,7 +80,7 @@ osThreadId_t Remot_TaskHandle;
 const osThreadAttr_t Remot_Task_attributes = {
   .name = "Remot_Task",
   .stack_size = 128 * 4,
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityAboveNormal,
 };
 /* Definitions for Catch_Task */
 osThreadId_t Catch_TaskHandle;
