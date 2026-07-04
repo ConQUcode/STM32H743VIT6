@@ -8,44 +8,115 @@
 
 #include "chassis.h"
 #include "DJI_motor.h"
+#include "main.h"
 #include "attitude_ekf.h"
 #include "bsp_dwt.h"
 #include "remote.h"
 #include "robot_def.h"
 #include <math.h>
 
-#define CHASSIS_ID1_M3508_SPEED_DEADBAND 80.0f
-#define CHASSIS_ID2_M3508_SPEED_DEADBAND 80.0f
-#define CHASSIS_ID3_M3508_SPEED_DEADBAND 80.0f
-#define CHASSIS_ID4_M3508_SPEED_DEADBAND 80.0f
-#define CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE 1U
-#define CHASSIS_STEERING_STARTUP_HOLD_TICKS 50U
-#define CHASSIS_STEERING_ANGLE_MAX_OUT 1200.0f
-#define CHASSIS_STEERING_SPEED_MAX_OUT 13000.0f
-#define CHASSIS_GM6020_ID3_OUTPUT_REVERSE 1U
-#define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f
-#define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f
-#define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f
-#define CHASSIS_IMU_DT_FALLBACK_S 0.001f
-#define CHASSIS_IMU_DT_MAX_S 0.05f
-#define CHASSIS_IMU_YAW_AXIS_X 0U
-#define CHASSIS_IMU_YAW_AXIS_Y 1U
-#define CHASSIS_IMU_YAW_AXIS_Z 2U
-#define CHASSIS_IMU_YAW_AXIS CHASSIS_IMU_YAW_AXIS_Z
-#define CHASSIS_IMU_YAW_SIGN 1.0f
-#define CHASSIS_IMU_INIT_SAMPLE_COUNT 512U
-#define CHASSIS_IMU_INIT_SAMPLE_DELAY_MS 1U
-#define CHASSIS_IMU_EKF_Q_NOISE 10.0f
-#define CHASSIS_IMU_EKF_BIAS_NOISE 0.001f
-#define CHASSIS_IMU_EKF_ACCEL_NOISE 1000.0f
-#define CHASSIS_IMU_EKF_LAMBDA 1.0f
-#define CHASSIS_IMU_EKF_ACCEL_LPF 0.01f
+#define CHASSIS_ID1_M3508_SPEED_DEADBAND 80.0f        // ID1 行走 3508 速度死区
+#define CHASSIS_ID2_M3508_SPEED_DEADBAND 80.0f        // ID2 行走 3508 速度死区
+#define CHASSIS_ID3_M3508_SPEED_DEADBAND 80.0f        // ID3 行走 3508 速度死区
+#define CHASSIS_ID4_M3508_SPEED_DEADBAND 80.0f        // ID4 行走 3508 速度死区
+#define CHASSIS_STEERING_ANGLE_MAX_OUT 1500.0f        // 舵向角度环最大输出
+#define CHASSIS_STEERING_SPEED_MAX_OUT 20000.0f       // 舵向正常速度环最大输出
+#define CHASSIS_STEERING_SPEED_KP 8.5f                // 舵向正常速度环 Kp
+#define CHASSIS_STEERING_SPEED_KI 0.001f              // 舵向正常速度环 Ki
+#define CHASSIS_STEERING_SPEED_KD 0.001f              // 舵向正常速度环 Kd
+#define CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT 0.0f    // 舵向正常速度环积分限幅
+#define CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC 0.08f    // 舵向正常速度环输出低通滤波 RC
+#define CHASSIS_STEERING_HOME_SPEED_REF 1200.0f       // 舵向归零时的速度给定
+#define CHASSIS_STEERING_HOME_SPEED_KP 3.5f           // 舵向归零速度环 Kp 6.5
+#define CHASSIS_STEERING_HOME_SPEED_KI 0.0f           // 舵向归零速度环 Ki
+#define CHASSIS_STEERING_HOME_SPEED_KD 0.0f           // 舵向归零速度环 Kd
+#define CHASSIS_STEERING_HOME_SPEED_MAX_OUT 25000.0f  // 舵向归零速度环最大输出
+#define CHASSIS_STEERING_HOME_SPEED_LPF_RC 0.08f      // 舵向归零速度环输出低通滤波 RC
+#define CHASSIS_STEERING_HOME_LEFT_SPEED_KP 2.5f      // 左侧 LF/LB 归零/磨合速度环 Kp, 左侧顺滑时不要过大
+#define CHASSIS_STEERING_HOME_LEFT_SPEED_KI 0.0f      // 左侧 LF/LB 归零/磨合速度环 Ki
+#define CHASSIS_STEERING_HOME_LEFT_SPEED_KD 0.0f      // 左侧 LF/LB 归零/磨合速度环 Kd
+#define CHASSIS_STEERING_HOME_LEFT_SPEED_MAX_OUT 10000.0f // 左侧 LF/LB 归零/磨合速度环最大输出
+#define CHASSIS_STEERING_HOME_LEFT_SPEED_LPF_RC 0.08f // 左侧 LF/LB 归零/磨合速度环输出低通滤波 RC
+#define CHASSIS_STEERING_HOME_RIGHT_SPEED_KP 4.5f     // 右侧 RF/RB 归零/磨合速度环 Kp, 右侧粗糙时可适当增大
+#define CHASSIS_STEERING_HOME_RIGHT_SPEED_KI 0.0f     // 右侧 RF/RB 归零/磨合速度环 Ki
+#define CHASSIS_STEERING_HOME_RIGHT_SPEED_KD 0.0f     // 右侧 RF/RB 归零/磨合速度环 Kd
+#define CHASSIS_STEERING_HOME_RIGHT_SPEED_MAX_OUT 15000.0f // 右侧 RF/RB 归零/磨合速度环最大输出
+#define CHASSIS_STEERING_HOME_RIGHT_SPEED_LPF_RC 0.08f // 右侧 RF/RB 归零/磨合速度环输出低通滤波 RC
+#define CHASSIS_STEERING_HOME_UNBLOCK_CONFIRM_MS 10U  // 光电门离开遮挡后的确认时间
+#define CHASSIS_STEERING_HOME_CONFIRM_MS 5U           // 光电门再次遮挡后的确认时间
+#define CHASSIS_STEERING_HOME_SETTLE_MS 1000U         // 归零后停稳等待时间
+#define CHASSIS_STEERING_HOME_TIMEOUT_MS 15000U       // 单个舵轮归零超时时间
+#define CHASSIS_STEERING_ALIGN_ENABLE 1U              // 舵轮归零后是否转到目标 ECD: 1=正常闭环, 0=停在归零点
+#define CHASSIS_STEERING_BREAK_IN_ENABLE 1U           // 舵向电机磨合开关: 1=四个舵向 3508 持续旋转, 0=正常底盘逻辑
+#define CHASSIS_STEERING_BREAK_IN_SPEED_REF 1000.0f    // 舵向电机磨合速度给定, 单位 deg/s, 反向磨合改成负数
+#define CHASSIS_STEERING_PHOTO_GATE_BLOCKED GPIO_PIN_RESET // 光电门遮挡电平
+#define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f  // 停车对正时角速度死区
+#define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f // 静止航向保持进入死区
+#define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f  // 静止航向保持退出死区
+#define CHASSIS_IMU_DT_FALLBACK_S 0.001f              // IMU 更新周期异常时的备用周期
+#define CHASSIS_IMU_DT_MAX_S 0.05f                    // IMU 更新周期最大允许值
+#define CHASSIS_IMU_YAW_AXIS_X 0U                     // IMU 偏航轴选择 X
+#define CHASSIS_IMU_YAW_AXIS_Y 1U                     // IMU 偏航轴选择 Y
+#define CHASSIS_IMU_YAW_AXIS_Z 2U                     // IMU 偏航轴选择 Z
+#define CHASSIS_IMU_YAW_AXIS CHASSIS_IMU_YAW_AXIS_Z   // 当前 IMU 偏航轴
+#define CHASSIS_IMU_YAW_SIGN 1.0f                     // IMU 偏航方向符号
+#define CHASSIS_IMU_INIT_SAMPLE_COUNT 512U            // IMU 初始化采样次数
+#define CHASSIS_IMU_INIT_SAMPLE_DELAY_MS 1U           // IMU 初始化采样间隔
+#define CHASSIS_IMU_EKF_Q_NOISE 10.0f                 // IMU EKF 过程噪声
+#define CHASSIS_IMU_EKF_BIAS_NOISE 0.001f             // IMU EKF 零偏噪声
+#define CHASSIS_IMU_EKF_ACCEL_NOISE 1000.0f           // IMU EKF 加速度噪声
+#define CHASSIS_IMU_EKF_LAMBDA 1.0f                   // IMU EKF Lambda 参数
+#define CHASSIS_IMU_EKF_ACCEL_LPF 0.01f               // IMU EKF 加速度低通系数
 
 /* 底盘行走电机实例（3508 电机）:  */
 static DJIMotor_Instance *motor_lf, *motor_rf, *motor_lb, *motor_rb;
 
-/* 底盘转向电机实例（6020 电机）:  */
+/* 底盘转向电机实例（3508 电机）:  */
 static DJIMotor_Instance *motor_steering_lf, *motor_steering_rf, *motor_steering_lb, *motor_steering_rb;
+
+typedef enum {
+    CHASSIS_STEERING_LF = 0,
+    CHASSIS_STEERING_RF,
+    CHASSIS_STEERING_LB,
+    CHASSIS_STEERING_RB,
+    CHASSIS_STEERING_COUNT,
+} ChassisSteeringIndex_e;
+
+#define CHASSIS_SINGLE_SWERVE_TEST_ENABLE 1U          // 单舵轮测试开关: 1=只测试右前舵轮, 0=四舵轮全部参与
+#define CHASSIS_SINGLE_SWERVE_TEST_INDEX CHASSIS_STEERING_RF // 单舵轮测试对象: 右前舵轮, 行走 ID1 + 舵向 ID8
+
+typedef enum {
+    CHASSIS_STEERING_HOME_WAIT_FEEDBACK = 0,
+    CHASSIS_STEERING_HOME_CHECK_INITIAL_GATE,
+    CHASSIS_STEERING_HOME_FIND_UNBLOCKED,
+    CHASSIS_STEERING_HOME_CONFIRM_UNBLOCKED,
+    CHASSIS_STEERING_HOME_SEARCH_BLOCKED,
+    CHASSIS_STEERING_HOME_CONFIRM_BLOCKED,
+    CHASSIS_STEERING_HOME_SETTLE_AFTER_RESET,
+    CHASSIS_STEERING_HOME_DONE,
+    CHASSIS_STEERING_HOME_ERROR,
+} ChassisSteeringHomeState_e;
+
+typedef struct {
+    DJIMotor_Instance *motor;
+    GPIO_TypeDef *photo_gate_port;
+    uint16_t photo_gate_pin;
+    float target_total_ecd;
+    float align_angle_ref;
+    ChassisSteeringHomeState_e state;
+    uint32_t state_tick;
+    uint8_t is_homed;
+} ChassisSteeringHome_s;
+
+static ChassisSteeringHome_s steering_home[CHASSIS_STEERING_COUNT] = {
+    [CHASSIS_STEERING_LF] = {NULL, GPIOB, GPIO_PIN_1, STEERING_CHASSIS_ALIGN_TOTAL_ECD_LF, 0.0f, CHASSIS_STEERING_HOME_WAIT_FEEDBACK, 0U, 0U},
+    [CHASSIS_STEERING_RF] = {NULL, GPIOE, GPIO_PIN_14, STEERING_CHASSIS_ALIGN_TOTAL_ECD_RF, 0.0f, CHASSIS_STEERING_HOME_WAIT_FEEDBACK, 0U, 0U},
+    [CHASSIS_STEERING_LB] = {NULL, GPIOE, GPIO_PIN_9, STEERING_CHASSIS_ALIGN_TOTAL_ECD_LB, 0.0f, CHASSIS_STEERING_HOME_WAIT_FEEDBACK, 0U, 0U},
+    [CHASSIS_STEERING_RB] = {NULL, GPIOE, GPIO_PIN_11, STEERING_CHASSIS_ALIGN_TOTAL_ECD_RB, 0.0f, CHASSIS_STEERING_HOME_WAIT_FEEDBACK, 0U, 0U},
+};
+
+static uint8_t steering_home_index = 0U;
+static uint8_t steering_home_all_done = 0U;
 
 /* 航向锁定 PID 控制器 */
 static PID_Instance chassis_follow_pid;
@@ -310,39 +381,349 @@ void ChassisIMU_ResetYaw(float yaw_deg)
     chassis_ctrl_cmd.offset_w = 0.0f;
 }
 
-static float ChassisSteeringAngle(DJIMotor_Instance *motor)
+static void ChassisSteeringClearPID(PID_Instance *pid)
 {
-    if (motor == NULL) {
+    if (pid == NULL) {
+        return;
+    }
+
+    pid->Measure = 0.0f;
+    pid->Last_Measure = 0.0f;
+    pid->Err = 0.0f;
+    pid->Last_Err = 0.0f;
+    pid->Last_ITerm = 0.0f;
+    pid->Pout = 0.0f;
+    pid->Iout = 0.0f;
+    pid->Dout = 0.0f;
+    pid->ITerm = 0.0f;
+    pid->Output = 0.0f;
+    pid->Last_Output = 0.0f;
+    pid->Last_Dout = 0.0f;
+    pid->Ref = 0.0f;
+}
+
+static float ChassisSteeringNormalizeTargetTotalEcd(float target_total_ecd)
+{
+    while (target_total_ecd > CHASSIS_STEER_WHEEL_TOTAL_ECD_HALF_RANGE) {
+        target_total_ecd -= CHASSIS_STEER_WHEEL_TOTAL_ECD_RANGE;
+    }
+
+    while (target_total_ecd < -CHASSIS_STEER_WHEEL_TOTAL_ECD_HALF_RANGE) {
+        target_total_ecd += CHASSIS_STEER_WHEEL_TOTAL_ECD_RANGE;
+    }
+
+    return target_total_ecd;
+}
+
+static float ChassisSteeringWheelAngleToMotorAngle(const ChassisSteeringHome_s *home,
+                                                   float wheel_angle_deg)
+{
+    float target_total_ecd;
+
+    if (home == NULL) {
         return 0.0f;
     }
 
-    return motor->measure.total_angle;
+    target_total_ecd = home->target_total_ecd +
+                       wheel_angle_deg / 360.0f * CHASSIS_STEER_WHEEL_TOTAL_ECD_RANGE;
+    target_total_ecd = ChassisSteeringNormalizeTargetTotalEcd(target_total_ecd);
+
+    return CHASSIS_STEER_ECD_TO_DEG(target_total_ecd);
 }
 
-static uint8_t ChassisSteeringId3StartupGuard(void)
+static float ChassisSteeringWheelAngle(const ChassisSteeringHome_s *home)
 {
-#if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
-    static uint8_t hold_ticks = 0U;
+    float motor_total_ecd;
+    float wheel_total_ecd;
 
-    if (motor_steering_lf == NULL || motor_steering_lf->feedback_initialized == 0U) {
-        hold_ticks = 0U;
-        if (motor_steering_lf != NULL) {
-            DJIMotorStop(motor_steering_lf);
-        }
+    if ((home == NULL) || (home->motor == NULL)) {
+        return 0.0f;
+    }
+
+    motor_total_ecd = home->motor->measure.total_angle / 360.0f * CHASSIS_STEER_MOTOR_ECD_RANGE;
+    wheel_total_ecd = ChassisSteeringNormalizeTargetTotalEcd(motor_total_ecd - home->target_total_ecd);
+
+    return wheel_total_ecd / CHASSIS_STEER_WHEEL_TOTAL_ECD_RANGE * 360.0f;
+}
+
+static uint8_t ChassisSteeringPhotoGateBlocked(const ChassisSteeringHome_s *home)
+{
+    if ((home == NULL) || (home->photo_gate_port == NULL)) {
         return 0U;
     }
 
-    if (hold_ticks < CHASSIS_STEERING_STARTUP_HOLD_TICKS) {
-        hold_ticks++;
-        DJIMotorSetRef(motor_steering_lf, motor_steering_lf->measure.total_angle);
-        DJIMotorEnable(motor_steering_lf);
-        return 0U;
+    return (HAL_GPIO_ReadPin(home->photo_gate_port, home->photo_gate_pin) ==
+            CHASSIS_STEERING_PHOTO_GATE_BLOCKED)
+               ? 1U
+               : 0U;
+}
+
+static void ChassisSteeringEnterHomeState(ChassisSteeringHome_s *home,
+                                          ChassisSteeringHomeState_e state)
+{
+    if (home == NULL) {
+        return;
     }
 
-    return 1U;
+    home->state = state;
+    home->state_tick = HAL_GetTick();
+}
+
+static void ChassisSteeringSetHomeSpeedPID(ChassisSteeringHome_s *home)
+{
+    PID_Instance *speed_pid;
+    float kp = CHASSIS_STEERING_HOME_LEFT_SPEED_KP;
+    float ki = CHASSIS_STEERING_HOME_LEFT_SPEED_KI;
+    float kd = CHASSIS_STEERING_HOME_LEFT_SPEED_KD;
+    float max_out = CHASSIS_STEERING_HOME_LEFT_SPEED_MAX_OUT;
+    float output_lpf_rc = CHASSIS_STEERING_HOME_LEFT_SPEED_LPF_RC;
+
+    if ((home == NULL) || (home->motor == NULL)) {
+        return;
+    }
+
+    if ((home == &steering_home[CHASSIS_STEERING_RF]) ||
+        (home == &steering_home[CHASSIS_STEERING_RB])) {
+        kp = CHASSIS_STEERING_HOME_RIGHT_SPEED_KP;
+        ki = CHASSIS_STEERING_HOME_RIGHT_SPEED_KI;
+        kd = CHASSIS_STEERING_HOME_RIGHT_SPEED_KD;
+        max_out = CHASSIS_STEERING_HOME_RIGHT_SPEED_MAX_OUT;
+        output_lpf_rc = CHASSIS_STEERING_HOME_RIGHT_SPEED_LPF_RC;
+    }
+
+    speed_pid = &home->motor->motor_controller.speed_PID;
+    speed_pid->Kp = kp;
+    speed_pid->Ki = ki;
+    speed_pid->Kd = kd;
+    speed_pid->Improve = PID_OutputFilter;
+    speed_pid->IntegralLimit = 0.0f;
+    speed_pid->MaxOut = max_out;
+    speed_pid->Output_LPF_RC = output_lpf_rc;
+    ChassisSteeringClearPID(speed_pid);
+}
+
+static void ChassisSteeringSetNormalSpeedPID(ChassisSteeringHome_s *home)
+{
+    PID_Instance *speed_pid;
+
+    if ((home == NULL) || (home->motor == NULL)) {
+        return;
+    }
+
+    speed_pid = &home->motor->motor_controller.speed_PID;
+    speed_pid->Kp = CHASSIS_STEERING_SPEED_KP;
+    speed_pid->Ki = CHASSIS_STEERING_SPEED_KI;
+    speed_pid->Kd = CHASSIS_STEERING_SPEED_KD;
+    speed_pid->Improve = PID_Integral_Limit | PID_Derivative_On_Measurement |
+                         PID_ChangingIntegrationRate | PID_OutputFilter;
+    speed_pid->IntegralLimit = CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT;
+    speed_pid->MaxOut = CHASSIS_STEERING_SPEED_MAX_OUT;
+    speed_pid->Output_LPF_RC = CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC;
+    ChassisSteeringClearPID(speed_pid);
+}
+
+static void ChassisSteeringSetHomeSpeedRef(ChassisSteeringHome_s *home, float speed_ref)
+{
+    if ((home == NULL) || (home->motor == NULL)) {
+        return;
+    }
+
+    DJIMotorEnable(home->motor);
+    DJIMotorOuterLoop(home->motor, SPEED_LOOP);
+    DJIMotorSetRef(home->motor, speed_ref);
+}
+
+static void ChassisSteeringStopMotor(ChassisSteeringHome_s *home)
+{
+    if ((home == NULL) || (home->motor == NULL)) {
+        return;
+    }
+
+    DJIMotorSetRef(home->motor, 0.0f);
+    DJIMotorStop(home->motor);
+}
+
+static void ChassisSteeringSetAlignAngleRef(ChassisSteeringHome_s *home)
+{
+    if ((home == NULL) || (home->motor == NULL)) {
+        return;
+    }
+
+#if CHASSIS_STEERING_ALIGN_ENABLE
+    DJIMotorEnable(home->motor);
+    DJIMotorOuterLoop(home->motor, ANGLE_LOOP);
+    DJIMotorSetRef(home->motor, home->align_angle_ref);
 #else
-    return 1U;
+    ChassisSteeringStopMotor(home);
 #endif
+}
+
+static void ChassisSteeringStartHome(ChassisSteeringHome_s *home)
+{
+    if (home == NULL) {
+        return;
+    }
+
+    home->align_angle_ref = 0.0f;
+    home->is_homed = 0U;
+
+    if ((home->motor == NULL) || (home->motor->feedback_initialized == 0U)) {
+        ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_WAIT_FEEDBACK);
+        return;
+    }
+
+    ChassisSteeringSetHomeSpeedPID(home);
+    ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_CHECK_INITIAL_GATE);
+}
+
+static void ChassisSteeringStartHomeAll(void)
+{
+    steering_home[CHASSIS_STEERING_LF].motor = motor_steering_lf;
+    steering_home[CHASSIS_STEERING_RF].motor = motor_steering_rf;
+    steering_home[CHASSIS_STEERING_LB].motor = motor_steering_lb;
+    steering_home[CHASSIS_STEERING_RB].motor = motor_steering_rb;
+#if CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+    steering_home_index = CHASSIS_SINGLE_SWERVE_TEST_INDEX;
+#else
+    steering_home_index = CHASSIS_STEERING_LF;
+#endif
+    steering_home_all_done = 0U;
+
+    for (uint8_t i = 0U; i < CHASSIS_STEERING_COUNT; i++) {
+        steering_home[i].align_angle_ref = 0.0f;
+        steering_home[i].is_homed = 0U;
+        ChassisSteeringEnterHomeState(&steering_home[i], CHASSIS_STEERING_HOME_WAIT_FEEDBACK);
+        ChassisSteeringStopMotor(&steering_home[i]);
+    }
+
+    ChassisSteeringStartHome(&steering_home[steering_home_index]);
+}
+
+static void ChassisSteeringHomeTask(ChassisSteeringHome_s *home)
+{
+    uint32_t now = HAL_GetTick();
+
+    if (home == NULL) {
+        return;
+    }
+
+    if ((home->motor == NULL) || (home->motor->feedback_initialized == 0U)) {
+        home->is_homed = 0U;
+        ChassisSteeringStopMotor(home);
+        ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_WAIT_FEEDBACK);
+        return;
+    }
+
+    switch (home->state) {
+        case CHASSIS_STEERING_HOME_WAIT_FEEDBACK:
+            ChassisSteeringSetHomeSpeedPID(home);
+            ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_CHECK_INITIAL_GATE);
+            break;
+
+        case CHASSIS_STEERING_HOME_CHECK_INITIAL_GATE:
+            home->is_homed = 0U;
+            ChassisSteeringSetHomeSpeedPID(home);
+            if (ChassisSteeringPhotoGateBlocked(home) != 0U) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_FIND_UNBLOCKED);
+            } else {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_SEARCH_BLOCKED);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_FIND_UNBLOCKED:
+            ChassisSteeringSetHomeSpeedRef(home, CHASSIS_STEERING_HOME_SPEED_REF);
+            if (ChassisSteeringPhotoGateBlocked(home) == 0U) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_CONFIRM_UNBLOCKED);
+            } else if ((now - home->state_tick) >= CHASSIS_STEERING_HOME_TIMEOUT_MS) {
+                ChassisSteeringStopMotor(home);
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_ERROR);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_CONFIRM_UNBLOCKED:
+            ChassisSteeringSetHomeSpeedRef(home, CHASSIS_STEERING_HOME_SPEED_REF);
+            if (ChassisSteeringPhotoGateBlocked(home) != 0U) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_FIND_UNBLOCKED);
+            } else if ((now - home->state_tick) >= CHASSIS_STEERING_HOME_UNBLOCK_CONFIRM_MS) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_SEARCH_BLOCKED);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_SEARCH_BLOCKED:
+            ChassisSteeringSetHomeSpeedRef(home, CHASSIS_STEERING_HOME_SPEED_REF);
+            if (ChassisSteeringPhotoGateBlocked(home) != 0U) {
+                ChassisSteeringStopMotor(home);
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_CONFIRM_BLOCKED);
+            } else if ((now - home->state_tick) >= CHASSIS_STEERING_HOME_TIMEOUT_MS) {
+                ChassisSteeringStopMotor(home);
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_ERROR);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_CONFIRM_BLOCKED:
+            ChassisSteeringStopMotor(home);
+            if (ChassisSteeringPhotoGateBlocked(home) == 0U) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_SEARCH_BLOCKED);
+            } else if ((now - home->state_tick) >= CHASSIS_STEERING_HOME_CONFIRM_MS) {
+                DJIMotorReset(home->motor);
+                home->motor->measure.total_angle = 0.0f;
+                home->align_angle_ref =
+                    ChassisSteeringWheelAngleToMotorAngle(home, 0.0f);
+                ChassisSteeringSetNormalSpeedPID(home);
+                ChassisSteeringClearPID(&home->motor->motor_controller.angle_PID);
+                home->is_homed = 1U;
+                ChassisSteeringEnterHomeState(home,
+                                              CHASSIS_STEERING_HOME_SETTLE_AFTER_RESET);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_SETTLE_AFTER_RESET:
+            ChassisSteeringStopMotor(home);
+            if ((now - home->state_tick) >= CHASSIS_STEERING_HOME_SETTLE_MS) {
+                ChassisSteeringEnterHomeState(home, CHASSIS_STEERING_HOME_DONE);
+            }
+            break;
+
+        case CHASSIS_STEERING_HOME_DONE:
+            ChassisSteeringSetAlignAngleRef(home);
+            break;
+
+        case CHASSIS_STEERING_HOME_ERROR:
+        default:
+            home->is_homed = 0U;
+            ChassisSteeringStopMotor(home);
+            break;
+    }
+}
+
+static void ChassisSteeringHomeTaskAll(void)
+{
+    if (steering_home_all_done != 0U) {
+        return;
+    }
+
+    ChassisSteeringHomeTask(&steering_home[steering_home_index]);
+
+#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+    for (uint8_t i = 0U; i < steering_home_index; i++) {
+        ChassisSteeringSetAlignAngleRef(&steering_home[i]);
+    }
+#endif
+
+    if ((steering_home[steering_home_index].state == CHASSIS_STEERING_HOME_DONE) &&
+        (steering_home[steering_home_index].is_homed != 0U)) {
+        ChassisSteeringSetAlignAngleRef(&steering_home[steering_home_index]);
+#if CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+        steering_home_all_done = 1U;
+#else
+        steering_home_index++;
+        if (steering_home_index >= CHASSIS_STEERING_COUNT) {
+            steering_home_all_done = 1U;
+        } else {
+            ChassisSteeringStartHome(&steering_home[steering_home_index]);
+        }
+#endif
+    }
 }
 
 static void ChassisSetDriveMotorRef(DJIMotor_Instance *motor, float speed, float deadband)
@@ -358,6 +739,49 @@ static void ChassisSetDriveMotorRef(DJIMotor_Instance *motor, float speed, float
         DJIMotorEnable(motor);
         DJIMotorSetRef(motor, speed);
     }
+}
+
+static void ChassisStopDriveMotors(void)
+{
+    ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
+}
+
+static void ChassisSteeringBreakInSetMotor(DJIMotor_Instance *motor, float speed_ref)
+{
+    if (motor == NULL) {
+        return;
+    }
+
+    if (motor->feedback_initialized == 0U) {
+        DJIMotorStop(motor);
+        return;
+    }
+
+    DJIMotorEnable(motor);
+    DJIMotorOuterLoop(motor, SPEED_LOOP);
+    DJIMotorSetRef(motor, speed_ref);
+}
+
+static void ChassisSteeringBreakInTask(void)
+{
+    static uint8_t break_in_pid_initialized = 0U;
+
+    if (break_in_pid_initialized == 0U) {
+        ChassisSteeringSetHomeSpeedPID(&steering_home[CHASSIS_STEERING_LF]);
+        ChassisSteeringSetHomeSpeedPID(&steering_home[CHASSIS_STEERING_RF]);
+        ChassisSteeringSetHomeSpeedPID(&steering_home[CHASSIS_STEERING_LB]);
+        ChassisSteeringSetHomeSpeedPID(&steering_home[CHASSIS_STEERING_RB]);
+        break_in_pid_initialized = 1U;
+    }
+
+    ChassisStopDriveMotors();
+    ChassisSteeringBreakInSetMotor(motor_steering_lf, CHASSIS_STEERING_BREAK_IN_SPEED_REF);
+    ChassisSteeringBreakInSetMotor(motor_steering_rf, CHASSIS_STEERING_BREAK_IN_SPEED_REF);
+    ChassisSteeringBreakInSetMotor(motor_steering_lb, CHASSIS_STEERING_BREAK_IN_SPEED_REF);
+    ChassisSteeringBreakInSetMotor(motor_steering_rb, CHASSIS_STEERING_BREAK_IN_SPEED_REF);
 }
 
 void ChassisInit()
@@ -397,15 +821,16 @@ void ChassisInit()
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID3_M3508_SPEED_DEADBAND;
     motor_lf                                                               = DJIMotorInit(&chassis_motor_config);
 
-    chassis_motor_config.can_init_config.tx_id                             = 4;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
-    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID4_M3508_SPEED_DEADBAND;
-    motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
-
     chassis_motor_config.can_init_config.tx_id                             = 1;
-	       chassis_motor_config.controller_param_init_config.speed_PID.Kp         =1.1;
+    chassis_motor_config.controller_param_init_config.speed_PID.Kp         = 1.7;
     chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID1_M3508_SPEED_DEADBAND;
+    motor_rf                                                               = DJIMotorInit(&chassis_motor_config);
+
+    chassis_motor_config.can_init_config.tx_id                             = 4;
+    chassis_motor_config.controller_param_init_config.speed_PID.Kp         = 1.1;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
+    chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID4_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 
     chassis_motor_config.can_init_config.tx_id                             = 2;
@@ -415,30 +840,30 @@ void ChassisInit()
     motor_rb                                                               = DJIMotorInit(&chassis_motor_config);
 
 
-    // 6020 转向电机初始化。
+    // 3508 转向电机初始化。
     Motor_Init_Config_s chassis_motor_steering_config = {
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .angle_PID = {
-                .Kp                = 13,
-                .Ki                = 0.34,
-                .Kd                = 0,
+                .Kp                = 3.5f,
+                .Ki                = 0.01f,
+                .Kd                = 0.03f,
                 .CoefA             = 5,
                 .CoefB             = 0.1,
                 .Improve           = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_DerivativeFilter | PID_ChangingIntegrationRate,
-                .IntegralLimit     = 1000,
+                .IntegralLimit     = 100,
                 .MaxOut            = CHASSIS_STEERING_ANGLE_MAX_OUT,
                 .Derivative_LPF_RC = 0.001,
                 .DeadBand          = 1,
             },
             .speed_PID = {
-                .Kp            = 60,
-                .Ki            = 3,
-                .Kd            = 0,
+                .Kp            = CHASSIS_STEERING_SPEED_KP,
+                .Ki            = CHASSIS_STEERING_SPEED_KI,
+                .Kd            = CHASSIS_STEERING_SPEED_KD,
                 .Improve       = PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ChangingIntegrationRate | PID_OutputFilter,
-                .IntegralLimit = 4000,
+                .IntegralLimit = CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT,
                 .MaxOut        = CHASSIS_STEERING_SPEED_MAX_OUT,
-                .Output_LPF_RC = 0.03,
+                .Output_LPF_RC = CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC,
             },
 
         },
@@ -448,27 +873,21 @@ void ChassisInit()
             .outer_loop_type       = ANGLE_LOOP,
             .close_loop_type       = SPEED_LOOP | ANGLE_LOOP,
             .motor_reverse_flag    = MOTOR_DIRECTION_NORMAL,
-            .angle_mode            = MOTOR_ANGLE_MODE_SINGLE_TURN,
+            .feedback_reverse_flag = FEEDBACK_DIRECTION_NORMAL,
+            .output_reverse_flag   = MOTOR_DIRECTION_NORMAL,
+            .angle_mode            = MOTOR_ANGLE_MODE_TOTAL,
+            .feedforward_flag      = FEEDFORWARD_NONE,
         },
-        .motor_type = GM6020,
+        .motor_type = M3508,
     };
-    chassis_motor_steering_config.can_init_config.tx_id = 3;
-#if CHASSIS_GM6020_ID3_OUTPUT_REVERSE
-    chassis_motor_steering_config.controller_setting_init_config.output_reverse_flag = MOTOR_DIRECTION_REVERSE;
-#endif
+    chassis_motor_steering_config.can_init_config.tx_id = 7;
     motor_steering_lf                                   = DJIMotorInit(&chassis_motor_steering_config);
-    chassis_motor_steering_config.controller_setting_init_config.output_reverse_flag = MOTOR_DIRECTION_NORMAL;
-    chassis_motor_steering_config.can_init_config.tx_id = 4;
+    chassis_motor_steering_config.can_init_config.tx_id = 8;
     motor_steering_rf                                   = DJIMotorInit(&chassis_motor_steering_config);
-    chassis_motor_steering_config.can_init_config.tx_id = 1;
+    chassis_motor_steering_config.can_init_config.tx_id = 5;
     motor_steering_lb                                   = DJIMotorInit(&chassis_motor_steering_config);
-    chassis_motor_steering_config.can_init_config.tx_id = 2;
+    chassis_motor_steering_config.can_init_config.tx_id = 6;
     motor_steering_rb                                   = DJIMotorInit(&chassis_motor_steering_config);
-#if CHASSIS_STEERING_ID3_STARTUP_GUARD_ENABLE
-    if (motor_steering_lf != NULL) {
-        DJIMotorStop(motor_steering_lf);
-    }
-#endif
 
             PID_Init_Config_s chassis_follow_pid_conf = {
         .Kp                = 150, // 6
@@ -485,6 +904,7 @@ void ChassisInit()
 
     PIDInit(&chassis_follow_pid, &chassis_follow_pid_conf);
     ChassisIMU_Init();
+    ChassisSteeringStartHomeAll();
 
 }
 
@@ -590,17 +1010,30 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     static uint8_t idle_yaw_correction_hold = 0U;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
     float at_lf_last = 0.0f, at_rf_last = 0.0f, at_lb_last = 0.0f, at_rb_last = 0.0f;
-    uint8_t id3_ready = 0U;
     uint8_t manual_idle = ((vx == 0.0f) && (vy == 0.0f) && (vw == 0.0f)) ? 1U : 0U;
     uint8_t stop_align_ready = 0U;
     float idle_yaw_error = 0.0f;
 
-    id3_ready = ChassisSteeringId3StartupGuard();
+    if (steering_home_all_done == 0U) {
+        ChassisStopDriveMotors();
+        return;
+    }
 
-    at_lf_last = ChassisSteeringAngle(motor_steering_lf);
-    at_rf_last = ChassisSteeringAngle(motor_steering_rf);
-    at_lb_last = ChassisSteeringAngle(motor_steering_lb);
-    at_rb_last = ChassisSteeringAngle(motor_steering_rb);
+#if !CHASSIS_STEERING_ALIGN_ENABLE
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LF]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RF]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LB]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RB]);
+    ChassisStopDriveMotors();
+    return;
+#endif
+
+    at_rf_last = ChassisSteeringWheelAngle(&steering_home[CHASSIS_STEERING_RF]);
+#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+    at_lf_last = ChassisSteeringWheelAngle(&steering_home[CHASSIS_STEERING_LF]);
+    at_lb_last = ChassisSteeringWheelAngle(&steering_home[CHASSIS_STEERING_LB]);
+    at_rb_last = ChassisSteeringWheelAngle(&steering_home[CHASSIS_STEERING_RB]);
+#endif
 
     if (first_run_kinematics) {
         chassis_ctrl_cmd.last_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
@@ -655,10 +1088,10 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     vt_rf = sqrtf(temp_x * temp_x + temp_y * temp_y);
     offset_rf = atan2f(temp_y, temp_x) * RAD_2_DEGREE;
 
-    at_lf = STEERING_CHASSIS_ALIGN_ANGLE_LF + offset_lf;
-    at_rf = STEERING_CHASSIS_ALIGN_ANGLE_RF + offset_rf;
-    at_lb = STEERING_CHASSIS_ALIGN_ANGLE_LB + offset_lb;
-    at_rb = STEERING_CHASSIS_ALIGN_ANGLE_RB + offset_rb;
+    at_lf = offset_lf;
+    at_rf = offset_rf;
+    at_lb = offset_lb;
+    at_rb = offset_rb;
 
     ANGLE_LIMIT_360_TO_180_ABS(at_lf);
     ANGLE_LIMIT_360_TO_180_ABS(at_rf);
@@ -666,26 +1099,46 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     ANGLE_LIMIT_360_TO_180_ABS(at_rb);
 
     if (stop_align_ready == 0U) {
-        MinmizeRotation(&at_lf, &at_lf_last, &vt_lf);
         MinmizeRotation(&at_rf, &at_rf_last, &vt_rf);
+#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+        MinmizeRotation(&at_lf, &at_lf_last, &vt_lf);
         MinmizeRotation(&at_lb, &at_lb_last, &vt_lb);
         MinmizeRotation(&at_rb, &at_rb_last, &vt_rb);
+#endif
     }
 
-    if (id3_ready) {
-        DJIMotorEnable(motor_steering_lf);
-        DJIMotorSetRef(motor_steering_lf, at_lf);
-    } else {
-        vt_lf = 0.0f;
-    }
+    at_rf = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_RF], at_rf);
+#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+    at_lf = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_LF], at_lf);
+    at_lb = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_LB], at_lb);
+    at_rb = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_RB], at_rb);
+#endif
+
+#if CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LF]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LB]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RB]);
+    DJIMotorEnable(motor_steering_rf);
+    DJIMotorSetRef(motor_steering_rf, at_rf);
+    ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
+#else
+    DJIMotorEnable(motor_steering_lf);
+    DJIMotorEnable(motor_steering_rf);
+    DJIMotorEnable(motor_steering_lb);
+    DJIMotorEnable(motor_steering_rb);
+    DJIMotorSetRef(motor_steering_lf, at_lf);
     DJIMotorSetRef(motor_steering_rf, at_rf);
     DJIMotorSetRef(motor_steering_lb, at_lb);
     DJIMotorSetRef(motor_steering_rb, at_rb);
 
     ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID3_M3508_SPEED_DEADBAND);
-    ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID4_M3508_SPEED_DEADBAND);
-    ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_rf, vt_rf, CHASSIS_ID1_M3508_SPEED_DEADBAND);
+    ChassisSetDriveMotorRef(motor_lb, vt_lb, CHASSIS_ID4_M3508_SPEED_DEADBAND);
     ChassisSetDriveMotorRef(motor_rb, vt_rb, CHASSIS_ID2_M3508_SPEED_DEADBAND);
+#endif
 }
 void ChassisTask(void)
 {
@@ -697,6 +1150,11 @@ void ChassisTask(void)
         imu_dt_s = CHASSIS_IMU_DT_FALLBACK_S;
     }
     ChassisIMU_Update(imu_dt_s);
+#if CHASSIS_STEERING_BREAK_IN_ENABLE
+    ChassisSteeringBreakInTask();
+    return;
+#endif
+    ChassisSteeringHomeTaskAll();
 
     if (remote_data != NULL) {
         // Left stick X is mounted as the forward/back channel on this remote.
