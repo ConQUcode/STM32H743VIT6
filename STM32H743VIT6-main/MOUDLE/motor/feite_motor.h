@@ -23,6 +23,7 @@
 #define FEITE_REG_GOAL_POSITION_L   42U
 #define FEITE_REG_PRESENT_POSITION_L 56U
 #define FEITE_REG_PRESENT_SPEED_L   58U
+#define FEITE_REG_PRESENT_CURRENT_L 69U
 
 #define FEITE_DEFAULT_TIMEOUT_MS    2U
 #define FEITE_DEFAULT_RAW_TO_DEG    (360.0f / 4096.0f)
@@ -66,6 +67,8 @@ typedef struct {
     int16_t position_signed;
     float angle_deg;
     int16_t speed_raw;
+    uint16_t current_raw;
+    int16_t current_signed;
     uint8_t temperature;
     uint8_t error;
     uint8_t online;
@@ -114,6 +117,7 @@ void FeiteMotorStop(FeiteMotor_Instance *motor);
 void FeiteMotorSetRef(FeiteMotor_Instance *motor, int16_t position);
 void FeiteMotorSetSpeed(FeiteMotor_Instance *motor, uint16_t speed);
 void FeiteMotorSetAcc(FeiteMotor_Instance *motor, uint8_t acc);
+void FeiteMotorSetTorque(FeiteMotor_Instance *motor, uint16_t torque);
 
 HAL_StatusTypeDef FeiteMotorMoveTo(FeiteMotor_Instance *motor,
                                    int16_t position,
@@ -121,6 +125,7 @@ HAL_StatusTypeDef FeiteMotorMoveTo(FeiteMotor_Instance *motor,
                                    uint8_t acc,
                                    uint16_t torque);
 HAL_StatusTypeDef FeiteMotorReadFeedback(FeiteMotor_Instance *motor);
+HAL_StatusTypeDef FeiteMotorReadCurrent(FeiteMotor_Instance *motor);
 HAL_StatusTypeDef FeiteMotorPing(FeiteMotor_Instance *motor);
 void FeiteMotorControl(void);
 

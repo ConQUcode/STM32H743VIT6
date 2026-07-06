@@ -11,6 +11,6 @@
 
 void CatchInit(void);
 void CatchTask(void);
-void FeiteOpen();
+void FeiteOpen(void);
 
 #endif

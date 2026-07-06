@@ -23,20 +23,20 @@
 #define CHASSIS_STEERING_SPEED_MAX_OUT 50000.0f       // 舵向正常速度环最大输出
 #define CHASSIS_STEERING_CURRENT_MAX_OUT 50000.0f     // 舵向电流环最大输出
 #define CHASSIS_STEERING_HOME_SPEED_REF 3500.0f       // 舵向归零时的速度给定
-#define CHASSIS_STEERING_ANGLE_KP_LF 7.5f             // 左前舵向 ID7 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KP_LF 12.5f             // 左前舵向 ID7 角度环 Kp
 #define CHASSIS_STEERING_ANGLE_KI_LF 1.5f             // 左前舵向 ID7 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_LF 0.2f             // 左前舵向 ID7 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_LF 100000.0f // 左前舵向 ID7 角度环积分限幅
-#define CHASSIS_STEERING_ANGLE_KP_RF 9.5f             // 右前舵向 ID8 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KP_RF 13.5f             // 右前舵向 ID8 角度环 Kp
 #define CHASSIS_STEERING_ANGLE_KI_RF 1.8f             // 右前舵向 ID8 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_RF 0.1f             // 右前舵向 ID8 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_RF 100000.0f // 右前舵向 ID8 角度环积分限幅
-#define CHASSIS_STEERING_ANGLE_KP_LB 8.5f             // 左后舵向 ID5 角度环 Kp
-#define CHASSIS_STEERING_ANGLE_KI_LB 0.6f             // 左后舵向 ID5 角度环 Ki
+#define CHASSIS_STEERING_ANGLE_KP_LB 10.0f             // 左后舵向 ID5 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KI_LB 0.05f             // 左后舵向 ID5 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_LB 0.15f             // 左后舵向 ID5 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_LB 100000.0f // 左后舵向 ID5 角度环积分限幅
-#define CHASSIS_STEERING_ANGLE_KP_RB 10.0f             // 右后舵向 ID6 角度环 Kp
-#define CHASSIS_STEERING_ANGLE_KI_RB 3.0f             // 右后舵向 ID6 角度环 Ki
+#define CHASSIS_STEERING_ANGLE_KP_RB 15.0f             // 右后舵向 ID6 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KI_RB 4.5f             // 右后舵向 ID6 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_RB 0.1f             // 右后舵向 ID6 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_RB 100000.0f // 右后舵向 ID6 角度环积分限幅
 #define CHASSIS_STEERING_ANGLE_COEF_A 5.0f            // 舵向角度环变积分参数 A
@@ -58,8 +58,8 @@
 #define CHASSIS_STEERING_SPEED_KD_LB 0.001f           // 左后舵向 ID5 正常速度环 Kd
 #define CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT_LB 100.0f // 左后舵向 ID5 正常速度环积分限幅
 #define CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC_LB 0.08f // 左后舵向 ID5 正常速度环输出低通滤波 RC
-#define CHASSIS_STEERING_SPEED_KP_RB 5.5f             // 右后舵向 ID6 正常速度环 Kp
-#define CHASSIS_STEERING_SPEED_KI_RB 0.001f           // 右后舵向 ID6 正常速度环 Ki
+#define CHASSIS_STEERING_SPEED_KP_RB 6.5f             // 右后舵向 ID6 正常速度环 Kp
+#define CHASSIS_STEERING_SPEED_KI_RB 0.01f           // 右后舵向 ID6 正常速度环 Ki
 #define CHASSIS_STEERING_SPEED_KD_RB 0.001f           // 右后舵向 ID6 正常速度环 Kd
 #define CHASSIS_STEERING_SPEED_INTEGRAL_LIMIT_RB 100.0f // 右后舵向 ID6 正常速度环积分限幅
 #define CHASSIS_STEERING_SPEED_OUTPUT_LPF_RC_RB 0.08f // 右后舵向 ID6 正常速度环输出低通滤波 RC
@@ -926,9 +926,9 @@ void ChassisInit()
         .can_init_config.fdcan_handle   = &hfdcan2,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp            = 5.0, // 3
-                .Ki            = 0.27, // 0.5
-                .Kd            = 0.005,   // 0
+                .Kp            = 3.0, // 3
+                .Ki            = 0.2, // 0.5
+                .Kd            = 0.001,   // 0
                 .IntegralLimit = 3000,//5000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
                 .MaxOut        = 30000,
@@ -939,7 +939,7 @@ void ChassisInit()
                 .Kd            = 0,
                 .IntegralLimit = 3000,//3000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut        = 10000,
+                .MaxOut        = 50000,
             },
         },
         .controller_setting_init_config = {
@@ -964,7 +964,7 @@ void ChassisInit()
 
     chassis_motor_config.can_init_config.tx_id                             = 4;
     chassis_motor_config.controller_param_init_config.speed_PID.Kp         = 1.1;
-    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_NORMAL;
+    chassis_motor_config.controller_setting_init_config.motor_reverse_flag = MOTOR_DIRECTION_REVERSE;
     chassis_motor_config.controller_param_init_config.speed_PID.DeadBand   = CHASSIS_ID4_M3508_SPEED_DEADBAND;
     motor_lb                                                               = DJIMotorInit(&chassis_motor_config);
 

@@ -378,6 +378,13 @@ void FeiteMotorSetAcc(FeiteMotor_Instance *motor, uint8_t acc)
     }
 }
 
+void FeiteMotorSetTorque(FeiteMotor_Instance *motor, uint16_t torque)
+{
+    if (motor != NULL) {
+        motor->ref_torque = torque;
+    }
+}
+
 /* HLS/SCS 位置控制：从 ACC 寄存器开始连续写 ACC、Position、Torque、Speed。 */
 HAL_StatusTypeDef FeiteMotorMoveTo(FeiteMotor_Instance *motor,
                                    int16_t position,
@@ -442,6 +449,31 @@ HAL_StatusTypeDef FeiteMotorReadFeedback(FeiteMotor_Instance *motor)
 }
 
 /* 低风险在线检测入口，建议实机调试时先 Ping 再发位置控制。 */
+HAL_StatusTypeDef FeiteMotorReadCurrent(FeiteMotor_Instance *motor)
+{
+    uint8_t data[2];
+    uint16_t current_raw;
+
+    if (motor == NULL || motor->bus == NULL) {
+        return HAL_ERROR;
+    }
+
+    if (FeiteReadReg(motor, FEITE_REG_PRESENT_CURRENT_L, sizeof(data), data) != HAL_OK) {
+        motor->measure.online = 0U;
+        return HAL_ERROR;
+    }
+
+    current_raw = FeiteServoToHostU16(motor->bus, data[0], data[1]);
+    motor->measure.current_raw = current_raw;
+    motor->measure.current_signed = (current_raw & 0x8000U) ? -(int16_t)(current_raw & 0x7FFFU)
+                                                            : (int16_t)current_raw;
+    motor->measure.error = motor->bus->last_status;
+    motor->measure.online = 1U;
+    motor->measure.last_update_tick = HAL_GetTick();
+
+    return HAL_OK;
+}
+
 HAL_StatusTypeDef FeiteMotorPing(FeiteMotor_Instance *motor)
 {
     if (motor == NULL || motor->bus == NULL) {
