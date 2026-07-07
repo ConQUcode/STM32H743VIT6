@@ -33,6 +33,7 @@
 #include "catch.h"
 #include "arm.h"
 #include "feite_motor.h"
+#include "dm_motor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -182,7 +183,7 @@ void ChassisControl(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		//ChassisTask();
+		ChassisTask();
 		
     osDelay(1);
   }
@@ -203,7 +204,8 @@ void DJIMotor(void *argument)
   for(;;)
   {
 		DJIMotorControl(); 
-		FeiteMotorControl();
+		DMMotorControl();
+		//FeiteMotorControl();
     osDelay(1);
   }
   /* USER CODE END DJIMotor */

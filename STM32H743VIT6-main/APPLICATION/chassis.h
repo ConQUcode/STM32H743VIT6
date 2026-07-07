@@ -48,7 +48,41 @@ typedef struct
     float offset_w;                     // 航向修正计算出的角速度增量
 } ChassisCtrlCmd_s;
 
+/**
+ * @brief 底盘调试镜像变量，便于Keil Watch直接观察static/局部状态
+ */
+typedef struct
+{
+    uint32_t task_count;             // ChassisTask执行次数
+    uint8_t remote_online;           // 遥控器在线状态
+    uint8_t steering_home_all_done;  // 舵轮归零总完成标志
+    uint8_t stop_reason;             // 0=正常,1=遥控掉线,2=归零未完成
+    uint8_t home_state[4];           // 四个舵轮归零状态
+    uint8_t home_done[4];            // 四个舵轮单独归零完成标志
+    float cmd_vx;                    // 当前前后速度指令
+    float cmd_vy;                    // 当前左右速度指令
+    float cmd_vw;                    // 当前旋转速度指令
+    float cmd_vw_corrected;          // 叠加 IMU 修正后的旋转速度指令
+    uint8_t imu_online;              // IMU 在线状态
+    uint8_t imu_enable;              // IMU 修正使能状态
+    uint8_t imu_mode;                // IMU 修正模式
+    float imu_yaw;                   // 当前 IMU 航向角
+    float imu_offset_w;              // 当前 IMU 航向修正量
+    float remote_right_y;            // 右摇杆Y原始中心化值
+    float remote_right_x;            // 右摇杆X原始中心化值
+    float remote_left_x;             // 左摇杆X原始中心化值
+    float wheel_speed_lf;            // 左前行走轮目标速度
+    float wheel_speed_rf;            // 右前行走轮目标速度
+    float wheel_speed_lb;            // 左后行走轮目标速度
+    float wheel_speed_rb;            // 右后行走轮目标速度
+    float steer_ref_lf;              // 左前舵向目标
+    float steer_ref_rf;              // 右前舵向目标
+    float steer_ref_lb;              // 左后舵向目标
+    float steer_ref_rb;              // 右后舵向目标
+} ChassisDebug_s;
+
 extern ChassisCtrlCmd_s chassis_ctrl_cmd;
+extern ChassisDebug_s chassis_debug;
 
 /**
  * @brief 底盘初始化，配置行走电机和转向电机的 PID 参数及 CAN 通信
