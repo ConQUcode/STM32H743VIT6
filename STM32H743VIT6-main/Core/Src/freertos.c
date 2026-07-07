@@ -182,7 +182,7 @@ void ChassisControl(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		ChassisTask();
+		//ChassisTask();
 		
     osDelay(1);
   }
@@ -261,7 +261,7 @@ void catch_start(void *argument)
   /* Infinite loop */
   for(;;)
   {
-		//CatchTask();
+		CatchTask();
     osDelay(1);
   }
   /* USER CODE END catch_start */

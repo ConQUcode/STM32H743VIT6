@@ -114,6 +114,7 @@ typedef enum {
 #define CHASSIS_SINGLE_SWERVE_TEST_INDEX CHASSIS_STEERING_RF // 单舵轮测试对象: 右前舵轮, 行走 ID1 + 舵向 ID8
 #define CHASSIS_LB_SWERVE_TEST_ENABLE 1U              // 左后舵轮测试开关: 1=参与测试, 0=左后舵向/行走都保持停止
 #define CHASSIS_DRIVE_MOTOR_TEST_ENABLE 1U            // 行走电机测试开关: 1=行走电机按解算输出, 0=四个行走电机保持停止
+#define CHASSIS_REMOTE_TIMEOUT_MS 300U                // 遥控器超时时间: 超过该时间未收到新帧则底盘参考值清零
 
 typedef enum {
     CHASSIS_STEERING_HOME_WAIT_FEEDBACK = 0,
@@ -145,7 +146,6 @@ static ChassisSteeringHome_s steering_home[CHASSIS_STEERING_COUNT] = {
     [CHASSIS_STEERING_RB] = {NULL, GPIOE, GPIO_PIN_11, STEERING_CHASSIS_ALIGN_TOTAL_ECD_RB, 0.0f, CHASSIS_STEERING_HOME_WAIT_FEEDBACK, 0U, 0U},
 };
 
-static uint8_t steering_home_index = 0U;
 static uint8_t steering_home_all_done = 0U;
 
 /* 航向锁定 PID 控制器 */
@@ -628,21 +628,6 @@ static uint8_t ChassisSteeringTestEnabled(uint8_t index)
     return 1U;
 }
 
-/**
- * @brief 从指定编号开始查找下一个参与测试的舵轮。
- */
-static uint8_t ChassisSteeringFindNextTestIndex(uint8_t start_index)
-{
-    while (start_index < CHASSIS_STEERING_COUNT) {
-        if (ChassisSteeringTestEnabled(start_index) != 0U) {
-            return start_index;
-        }
-        start_index++;
-    }
-
-    return CHASSIS_STEERING_COUNT;
-}
-
 static void ChassisSteeringSetAlignAngleRef(ChassisSteeringHome_s *home)
 {
     if ((home == NULL) || (home->motor == NULL)) {
@@ -678,16 +663,12 @@ static void ChassisSteeringStartHome(ChassisSteeringHome_s *home)
 
 static void ChassisSteeringStartHomeAll(void)
 {
+    uint8_t has_enabled_steering = 0U;
+
     steering_home[CHASSIS_STEERING_LF].motor = motor_steering_lf;
     steering_home[CHASSIS_STEERING_RF].motor = motor_steering_rf;
     steering_home[CHASSIS_STEERING_LB].motor = motor_steering_lb;
     steering_home[CHASSIS_STEERING_RB].motor = motor_steering_rb;
-#if CHASSIS_SINGLE_SWERVE_TEST_ENABLE
-    steering_home_index = ChassisSteeringFindNextTestIndex(CHASSIS_SINGLE_SWERVE_TEST_INDEX);
-#else
-    steering_home_index = ChassisSteeringFindNextTestIndex(CHASSIS_STEERING_LF);
-#endif
-    steering_home_all_done = 0U;
 
     for (uint8_t i = 0U; i < CHASSIS_STEERING_COUNT; i++) {
         steering_home[i].align_angle_ref = 0.0f;
@@ -696,11 +677,16 @@ static void ChassisSteeringStartHomeAll(void)
         ChassisSteeringStopMotor(&steering_home[i]);
     }
 
-    if (steering_home_index >= CHASSIS_STEERING_COUNT) {
-        steering_home_all_done = 1U;
-    } else {
-        ChassisSteeringStartHome(&steering_home[steering_home_index]);
+    for (uint8_t i = 0U; i < CHASSIS_STEERING_COUNT; i++) {
+        if (ChassisSteeringTestEnabled(i) != 0U) {
+            has_enabled_steering = 1U;
+            ChassisSteeringStartHome(&steering_home[i]);
+        } else {
+            ChassisSteeringStopMotor(&steering_home[i]);
+        }
     }
+
+    steering_home_all_done = (has_enabled_steering != 0U) ? 0U : 1U;
 }
 
 static void ChassisSteeringHomeTask(ChassisSteeringHome_s *home)
@@ -802,41 +788,28 @@ static void ChassisSteeringHomeTask(ChassisSteeringHome_s *home)
 
 static void ChassisSteeringHomeTaskAll(void)
 {
+    uint8_t all_done = 1U;
+
     if (steering_home_all_done != 0U) {
         return;
     }
 
-    if (steering_home_index >= CHASSIS_STEERING_COUNT) {
-        steering_home_all_done = 1U;
-        return;
-    }
-
-    ChassisSteeringHomeTask(&steering_home[steering_home_index]);
-
-#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
-    for (uint8_t i = 0U; i < steering_home_index; i++) {
+    for (uint8_t i = 0U; i < CHASSIS_STEERING_COUNT; i++) {
         if (ChassisSteeringTestEnabled(i) != 0U) {
-            ChassisSteeringSetAlignAngleRef(&steering_home[i]);
+            ChassisSteeringHomeTask(&steering_home[i]);
+
+            if ((steering_home[i].state == CHASSIS_STEERING_HOME_DONE) &&
+                (steering_home[i].is_homed != 0U)) {
+                ChassisSteeringSetAlignAngleRef(&steering_home[i]);
+            } else {
+                all_done = 0U;
+            }
         } else {
             ChassisSteeringStopMotor(&steering_home[i]);
         }
     }
-#endif
 
-    if ((steering_home[steering_home_index].state == CHASSIS_STEERING_HOME_DONE) &&
-        (steering_home[steering_home_index].is_homed != 0U)) {
-        ChassisSteeringSetAlignAngleRef(&steering_home[steering_home_index]);
-#if CHASSIS_SINGLE_SWERVE_TEST_ENABLE
-        steering_home_all_done = 1U;
-#else
-        steering_home_index = ChassisSteeringFindNextTestIndex(steering_home_index + 1U);
-        if (steering_home_index >= CHASSIS_STEERING_COUNT) {
-            steering_home_all_done = 1U;
-        } else {
-            ChassisSteeringStartHome(&steering_home[steering_home_index]);
-        }
-#endif
-    }
+    steering_home_all_done = all_done;
 }
 
 static void ChassisSetDriveMotorRef(DJIMotor_Instance *motor, float speed, float deadband)
@@ -860,6 +833,34 @@ static void ChassisStopDriveMotors(void)
     ChassisSetDriveMotorRef(motor_rf, 0.0f, CHASSIS_ID1_M3508_SPEED_DEADBAND);
     ChassisSetDriveMotorRef(motor_lb, 0.0f, CHASSIS_ID4_M3508_SPEED_DEADBAND);
     ChassisSetDriveMotorRef(motor_rb, 0.0f, CHASSIS_ID2_M3508_SPEED_DEADBAND);
+}
+
+static void ChassisStopSteeringMotors(void)
+{
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LF]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RF]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LB]);
+    ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RB]);
+}
+
+static uint8_t ChassisRemoteIsOnline(void)
+{
+    uint32_t now;
+
+    if ((remote_dev == NULL) || (remote_data == NULL)) {
+        return 0U;
+    }
+
+    if (remote_dev->last_update_time == 0U) {
+        return 0U;
+    }
+
+    now = HAL_GetTick();
+    if ((now - remote_dev->last_update_time) > CHASSIS_REMOTE_TIMEOUT_MS) {
+        return 0U;
+    }
+
+    return 1U;
 }
 
 /**
@@ -1322,6 +1323,17 @@ void ChassisTask(void)
     }
     ChassisIMU_Update(imu_dt_s);
     ChassisSteeringHomeTaskAll();
+
+    if (ChassisRemoteIsOnline() == 0U) {
+        // 遥控器掉线时禁止继续使用旧数据，行走电机参考值清零；归零结束后舵向电机也清零停止。
+        chassis_ctrl_cmd.offset_w = 0.0f;
+        ChassisIMU_ClearCorrectionPID();
+        ChassisStopDriveMotors();
+        if (steering_home_all_done != 0U) {
+            ChassisStopSteeringMotors();
+        }
+        return;
+    }
 
     if (remote_data != NULL) {
         // 左摇杆 Y 轴 -> 前后线速度 vx
