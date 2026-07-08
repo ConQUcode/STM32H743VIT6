@@ -7,25 +7,25 @@
 #include "string.h"
 #include "stdint.h"
 
-#define HE_MOTOR_CNT 254 // ×î´óÖ§³ÖµÄ¶æ»úÊıÁ¿
+#define HE_MOTOR_CNT 254 // ï¿½ï¿½ï¿½Ö§ï¿½ÖµÄ¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 #define HE_MAX_BUFFSIZE 32
 
-/* Ö¸Áî¶¨Òå */
-#define SERVO_MOVE_TIME_WRITE 1 // Î»ÖÃ/Ê±¼äĞ´ÈëÖ¸Áî£¬ÆäËûÖ¸Áî×ÔĞĞÌí¼Ó
+/* Ö¸ï¿½î¶¨ï¿½ï¿½ */
+#define SERVO_MOVE_TIME_WRITE 1 // Î»ï¿½ï¿½/Ê±ï¿½ï¿½Ğ´ï¿½ï¿½Ö¸ï¿½î£¬ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 
-/* ÔËĞĞ×´Ì¬ */
+/* ï¿½ï¿½ï¿½ï¿½×´Ì¬ */
 #define HE_STOP 0
 #define HE_ENABLED 1
 
 typedef struct {
-    uint8_t id;      // ¶æ»úID (0~253, 254Îª¹ã²¥)
-    uint8_t cmd;     // µ±Ç°Ö¸Áî
+    uint8_t id;      // ï¿½ï¿½ï¿½ID (0~253, 254Îªï¿½ã²¥)
+    uint8_t cmd;     // ï¿½ï¿½Ç°Ö¸ï¿½ï¿½
 } HEMotor_Config_s;
 
 typedef struct {
-    uint16_t position; // Ä¿±ê½Ç¶È (0~1000)
-    uint16_t time;     // ÔËĞĞÊ±¼ä (0~30000ms)
-    uint8_t stop_flag; // ÆôÍ£±êÖ¾
+    uint16_t position; // Ä¿ï¿½ï¿½Ç¶ï¿½ (0~1000)
+    uint16_t time;     // ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ (0~30000ms)
+    uint8_t stop_flag; // ï¿½ï¿½Í£ï¿½ï¿½Ö¾
 } HEMotor_Ref_s;
 
 
@@ -35,6 +35,9 @@ typedef struct {
     
     HEMotor_Config_s config;
     HEMotor_Ref_s ref;
+    
+    uint16_t last_position; // ä¸Šä¸€æ¬¡å‘é€çš„ä½ç½®
+    uint16_t last_time;     // ä¸Šä¸€æ¬¡å‘é€çš„æ—¶é—´
     
     uint8_t send_buff[HE_MAX_BUFFSIZE];
 } HEMotor_Instance;
@@ -48,17 +51,17 @@ typedef struct {
 } HEMotor_Init_Config_s;
 
 /**
- * @brief ³õÊ¼»¯¶æ»úÊµÀı
+ * @brief ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½
  */
 HEMotor_Instance *HEMotorInit(HEMotor_Init_Config_s *config);
 
 /**
- * @brief ¶æ»ú¿ØÖÆÈÎÎñ£¬±éÀúËùÓĞÊµÀı²¢·¢ËÍÖ¸Áî
+ * @brief ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ñ£¬±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½
  */
 void HEMotorControl(void);
 
 /**
- * @brief ·¢ËÍÎ»ÖÃ¿ØÖÆÖ¸Áî (SERVO_MOVE_TIME_WRITE)
+ * @brief ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã¿ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ (SERVO_MOVE_TIME_WRITE)
  */
 void HEMotorMoveTimeWrite(HEMotor_Instance *motor, uint16_t pos, uint16_t time);
 

@@ -22,6 +22,10 @@ if (config == NULL || he_idx >= HE_MOTOR_CNT) return NULL;
 
     motor->config = config->motor_config;
     motor->ref = config->motor_ref;
+    
+    // 初始化为无效值，确保第一次指令能发出
+    motor->last_position = 0xFFFF;
+    motor->last_time = 0xFFFF;
 
     he_motor_instances[he_idx++] = motor;
     return motor;
@@ -87,10 +91,14 @@ void HEMotorControl(void)
     last_send_tick = now;
 
     for (int i = 0; i < he_idx; i++) {
-        if (he_motor_instances[i] != NULL && he_motor_instances[i]->ref.stop_flag == HE_ENABLED) {
-            HEMotorMoveTimeWrite(he_motor_instances[i], 
-                                 he_motor_instances[i]->ref.position, 
-                                 he_motor_instances[i]->ref.time);
+        HEMotor_Instance *m = he_motor_instances[i];
+        if (m != NULL && m->ref.stop_flag == HE_ENABLED) {
+            // 仅在位置或时间发生变化时才发送指令
+            if (m->ref.position != m->last_position || m->ref.time != m->last_time) {
+                HEMotorMoveTimeWrite(m, m->ref.position, m->ref.time);
+                m->last_position = m->ref.position;
+                m->last_time = m->ref.time;
+            }
         }
     }
 }

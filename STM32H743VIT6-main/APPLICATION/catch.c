@@ -39,38 +39,38 @@ static float dm4310_target_vel = 1.5f;
 #define DM_LEVEL_POS_TOL_RAD      0.15f
 /* 3508 默认角度目标；不在状态机流程内时保持在该位置。 */
 #define LIFT_DEFAULT_ANGLE_REF    18000
+/* 非左1工作区间中，3508 回默认角度后才允许飞特张开的到位死区。 */
+#define LIFT_DEFAULT_ANGLE_TOL    500.0f
 /* 左1右1抓取完成后，3508 上抬到该角度目标。 */
 #define LIFT_CATCH_RAISE_REF      21000.0f
 /* 左1右2流程中，3508 堵转复位阶段的速度环目标。 */
-#define LIFT_SECOND_SPEED_REF     (-3000)
+#define LIFT_SECOND_SPEED_REF     (-5000)
 /* 左1右2流程开始时，3508 先上升到该角度后再执行达妙 level 流程。 */
 #define LIFT_SECOND_PRE_UP_REF    21000.0f
 /* 左1右2流程开始时，判断 3508 已经上升到位的角度死区。 */
 #define LIFT_SECOND_PRE_UP_TOL    400.0f
 /* 左1右2流程中，达妙到达 level_pos 后等待多久再执行后续动作，单位 ms。 */
-#define LIFT_SECOND_LEVEL_WAIT_MS 500U
+#define LIFT_SECOND_LEVEL_WAIT_MS 300U
 /* 左1右2流程中，PC2 拉低后再等待多久才启动 3508 下行判断，单位 ms。 */
 #define LIFT_SECOND_PC2_LOW_WAIT_MS 500U
 /* 左1右2流程中，3508 判定堵转/接触限位的电流阈值。 */
-#define LIFT_SECOND_CURRENT_LIMIT 2000
+#define LIFT_SECOND_CURRENT_LIMIT 2500
 /* 左1右2流程中，3508 进入速度环后延时多久再开始检测电流，单位 ms。 */
-#define LIFT_SECOND_CURRENT_DELAY_MS 500U
+#define LIFT_SECOND_CURRENT_DELAY_MS 300U
 /* 左1右2流程完成后，KEY0/KEY1 手动控制 3508 上下运动的速度目标。 */
 #define LIFT_MANUAL_SPEED_REF     3000
 /* 左1右3释放流程中，3508 先在当前角度基础上上升的增量。 */
 #define LIFT_RELEASE_RAISE_DELTA  2500.0f
 /* 左1右3释放流程中，PC2 动作前 3508 下降到的第一目标角度。 */
-#define LIFT_RELEASE_DOWN_REF     7000.0f
+#define LIFT_RELEASE_DOWN_REF     11000.0f
 /* 左1右3释放流程中，PC2 拉低后 3508 最终下降保持的角度。 */
 #define LIFT_RELEASE_FINAL_DOWN_REF 3500.0f
 /* 左1右3释放流程中，3508 到位判断的角度死区。 */
 #define LIFT_RELEASE_POS_TOL      500.0f
 /* 3508 下降到该角度以下时触发 PC2 拉低。 */
-#define LIFT_RELEASE_DOWN_TRIGGER (LIFT_RELEASE_DOWN_REF + LIFT_RELEASE_POS_TOL)
+#define LIFT_RELEASE_DOWN_TRIGGER 12500.0f
 /* 左1右3释放流程中，3508 上升到位后等待 PC2 后续动作的时间，单位 ms。 */
-#define LIFT_RELEASE_PC2_DELAY_MS 1000U
-/* 左1右3释放流程中，PC2 拉低后等待多久再执行 FeiteBigOpen()，单位 ms。 */
-#define LIFT_RELEASE_BIGOPEN_DELAY_MS 800U
+#define LIFT_RELEASE_PC2_DELAY_MS 500U
 /* 飞特夹爪抓取时的力矩限制值。 */
 #define FEITE_CATCH_TORQUE        1000U
 /* 飞特夹爪抓住后保持阶段的力矩限制值。 */
@@ -666,7 +666,7 @@ void CatchTask(void)
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
                     DJIMotorSetRef(DJM3508, LIFT_RELEASE_FINAL_DOWN_REF);
 
-                    if ((uint32_t)(HAL_GetTick() - release_wait_start_time) >= LIFT_RELEASE_BIGOPEN_DELAY_MS) {
+                    if (fabsf(DJM3508->measure.total_angle - LIFT_RELEASE_FINAL_DOWN_REF) <= LIFT_RELEASE_POS_TOL) {
                         release_action_started = 5U;
                         FeiteBigOpen();
                     }
@@ -688,7 +688,7 @@ void CatchTask(void)
                 DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             }
         } else {
-            /* 非左1工作区间: 清所有状态机，PC2 高电平，3508 回默认角度，飞特张开。 */
+            /* 非左1工作区间: 清所有状态机，PC2 高电平，3508 先回默认角度，到位后再飞特张开。 */
             feite_catch_started = 0U;
             feite_over_current_count = 0U;
             feite_protected = 0U;
@@ -703,7 +703,9 @@ void CatchTask(void)
             if (dm4310_motor != NULL) {
                 DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
             }
-            FeiteOpen();
+            if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
+                FeiteOpen();
+            }
         }
     }
 

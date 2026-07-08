@@ -78,7 +78,7 @@
 #define CHASSIS_STEERING_HOME_TIMEOUT_MS 15000U       // 单个舵轮归零超时时间
 #define CHASSIS_STEERING_ALIGN_ENABLE 1U              // 舵轮归零后是否转到目标 ECD: 1=正常闭环, 0=停在归零点
 #define CHASSIS_STEERING_PHOTO_GATE_BLOCKED GPIO_PIN_RESET // 光电门遮挡电平
-#define CHASSIS_IMU_CORRECTION_ENABLE 0U              // IMU 航向修正总开关: 1=启用, 0=关闭
+#define CHASSIS_IMU_CORRECTION_ENABLE 1U              // IMU 航向修正总开关: 1=启用, 0=关闭
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f  // 停车对正时角速度死区
 #define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f // 静止航向保持进入死区
 #define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f  // 静止航向保持退出死区
@@ -122,7 +122,7 @@ typedef enum {
 #define CHASSIS_REMOTE_VW_SIGN (1.0f)                 // 旋转方向修正: 左摇杆X控制角速度
 #define CHASSIS_REMOTE_LINEAR_DEADBAND 25.0f          // 前后/平移速度死区
 #define CHASSIS_REMOTE_ANGULAR_DEADBAND 50.0f         // 旋转角速度死区
-#define CHASSIS_IDLE_DRIVE_HOLD_ENABLE 0U             // 静止时行走轮速度环 0 保持
+#define CHASSIS_IDLE_DRIVE_HOLD_ENABLE 1U             // 静止时行走轮速度环 0 保持
 
 typedef enum {
     CHASSIS_STEERING_HOME_WAIT_FEEDBACK = 0,
@@ -1085,8 +1085,8 @@ void ChassisInit()
         .CoefA             = 0.2,
         .CoefB             = 0.3,
         .Improve           = PID_Trapezoid_Intergral | PID_DerivativeFilter | PID_DerivativeFilter | PID_Derivative_On_Measurement | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ErrorHandle,
-        .IntegralLimit     = 500, // 200
-        .MaxOut            = 35000,
+        .IntegralLimit     = 5000, // 200
+        .MaxOut            = 15000,
         .Derivative_LPF_RC = 0.01, // 0.01
     };
 
