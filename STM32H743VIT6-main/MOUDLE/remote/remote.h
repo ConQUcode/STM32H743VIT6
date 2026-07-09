@@ -31,6 +31,7 @@
 #define REMOTE_BOXER_CH_SF      9U  // CH10
 #define REMOTE_BOXER_CH_S1      10U // CH11
 #define REMOTE_BOXER_CH_S2      11U // CH12
+#define REMOTE_BOXER_CH_6POS    10U // CH11, measured six-position switch
 
 /**
  * @brief 遥控器解析后的有效数据结构
@@ -85,6 +86,7 @@ typedef struct {
     uint8_t sd;           // SD两段开关: 1/2
     uint8_t se;           // SE自锁开关: 1/2
     uint8_t sf;           // SF回弹开关: 1/2
+    uint8_t six_pos;      // 六段开关: 1/2/3/4/5/6
     uint16_t raw[REMOTE_CRSF_CHANNEL_COUNT]; // 保留一份语义层看到的原始通道值
 } Remote_Boxer_s;
 

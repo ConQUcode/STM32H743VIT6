@@ -123,6 +123,9 @@ typedef enum {
 #define CHASSIS_REMOTE_LINEAR_DEADBAND 25.0f          // 前后/平移速度死区
 #define CHASSIS_REMOTE_ANGULAR_DEADBAND 50.0f         // 旋转角速度死区
 #define CHASSIS_IDLE_DRIVE_HOLD_ENABLE 1U             // 静止时行走轮速度环 0 保持
+#define CHASSIS_DRIVE_WAIT_STEERING_ENABLE 0U         // 前进/平移时等待舵向到位后再启动行走轮
+#define CHASSIS_DRIVE_WAIT_STEERING_TOLERANCE_DEG 10.0f // 舵向到位判定角度误差
+#define CHASSIS_DRIVE_WAIT_STEERING_TIMEOUT_MS 300U   // 舵向等待超时,避免行走轮永久不动
 
 typedef enum {
     CHASSIS_STEERING_HOME_WAIT_FEEDBACK = 0,
@@ -494,6 +497,23 @@ static float ChassisSteeringWheelAngle(const ChassisSteeringHome_s *home)
     wheel_total_ecd = ChassisSteeringNormalizeTargetTotalEcd(motor_total_ecd - home->target_total_ecd);
 
     return wheel_total_ecd / CHASSIS_STEER_WHEEL_TOTAL_ECD_RANGE * 360.0f;
+}
+
+static uint8_t ChassisSteeringWheelAngleReady(const ChassisSteeringHome_s *home,
+                                              float target_wheel_angle_deg,
+                                              float tolerance_deg)
+{
+    float current_wheel_angle_deg;
+    float angle_error_deg;
+
+    if ((home == NULL) || (home->motor == NULL) || (home->is_homed == 0U)) {
+        return 0U;
+    }
+
+    current_wheel_angle_deg = ChassisSteeringWheelAngle(home);
+    angle_error_deg = fabsf(ChassisIMU_DiffDeg(target_wheel_angle_deg, current_wheel_angle_deg));
+
+    return (angle_error_deg <= tolerance_deg) ? 1U : 0U;
 }
 
 static uint8_t ChassisSteeringPhotoGateBlocked(const ChassisSteeringHome_s *home)
@@ -1198,10 +1218,14 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     float chassis_vw = vw;
     static uint8_t first_run_kinematics = 1;
     static uint8_t idle_yaw_correction_hold = 0U;
+    static uint8_t drive_wait_steering_active = 0U;
+    static uint32_t drive_wait_steering_start_tick = 0U;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
     float at_lf_last = 0.0f, at_rf_last = 0.0f, at_lb_last = 0.0f, at_rb_last = 0.0f;
     uint8_t manual_idle = ((vx == 0.0f) && (vy == 0.0f) && (vw == 0.0f)) ? 1U : 0U;
     uint8_t stop_align_ready = 0U;
+    uint8_t drive_wait_steering_ready = 1U;
+    uint8_t drive_wait_steering_needed = 0U;
     float idle_yaw_error = 0.0f;
 
     if (steering_home_all_done == 0U) {
@@ -1316,6 +1340,49 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
 #endif
     }
 
+#if CHASSIS_DRIVE_WAIT_STEERING_ENABLE
+    drive_wait_steering_needed =
+        (stop_align_ready == 0U && ((fabsf(chassis_vx) > 0.0f) || (fabsf(chassis_vy) > 0.0f))) ? 1U : 0U;
+
+    if (drive_wait_steering_needed != 0U) {
+        drive_wait_steering_ready =
+            ChassisSteeringWheelAngleReady(&steering_home[CHASSIS_STEERING_RF],
+                                           at_rf,
+                                           CHASSIS_DRIVE_WAIT_STEERING_TOLERANCE_DEG);
+#if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
+        drive_wait_steering_ready &=
+            ChassisSteeringWheelAngleReady(&steering_home[CHASSIS_STEERING_LF],
+                                           at_lf,
+                                           CHASSIS_DRIVE_WAIT_STEERING_TOLERANCE_DEG);
+#if CHASSIS_LB_SWERVE_TEST_ENABLE
+        drive_wait_steering_ready &=
+            ChassisSteeringWheelAngleReady(&steering_home[CHASSIS_STEERING_LB],
+                                           at_lb,
+                                           CHASSIS_DRIVE_WAIT_STEERING_TOLERANCE_DEG);
+#endif
+        drive_wait_steering_ready &=
+            ChassisSteeringWheelAngleReady(&steering_home[CHASSIS_STEERING_RB],
+                                           at_rb,
+                                           CHASSIS_DRIVE_WAIT_STEERING_TOLERANCE_DEG);
+#endif
+
+        if (drive_wait_steering_ready == 0U) {
+            if (drive_wait_steering_active == 0U) {
+                drive_wait_steering_active = 1U;
+                drive_wait_steering_start_tick = HAL_GetTick();
+            } else if ((HAL_GetTick() - drive_wait_steering_start_tick) >=
+                       CHASSIS_DRIVE_WAIT_STEERING_TIMEOUT_MS) {
+                drive_wait_steering_ready = 1U;
+            }
+        } else {
+            drive_wait_steering_active = 0U;
+        }
+    } else {
+        drive_wait_steering_active = 0U;
+        drive_wait_steering_ready = 1U;
+    }
+#endif
+
     at_rf = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_RF], at_rf);
 #if !CHASSIS_SINGLE_SWERVE_TEST_ENABLE
     at_lf = ChassisSteeringWheelAngleToMotorAngle(&steering_home[CHASSIS_STEERING_LF], at_lf);
@@ -1341,7 +1408,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     DJIMotorEnable(motor_steering_rf);
     DJIMotorSetRef(motor_steering_rf, at_rf);
 #if CHASSIS_DRIVE_MOTOR_TEST_ENABLE
-    if ((CHASSIS_IDLE_DRIVE_HOLD_ENABLE != 0U) && (stop_align_ready != 0U)) {
+    if (((CHASSIS_IDLE_DRIVE_HOLD_ENABLE != 0U) && (stop_align_ready != 0U)) ||
+        (drive_wait_steering_ready == 0U)) {
         ChassisHoldDriveMotors();
     } else {
         ChassisSetDriveMotorRef(motor_lf, 0.0f, CHASSIS_ID3_M3508_SPEED_DEADBAND);
@@ -1369,7 +1437,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     DJIMotorSetRef(motor_steering_rb, at_rb);
 
 #if CHASSIS_DRIVE_MOTOR_TEST_ENABLE
-    if ((CHASSIS_IDLE_DRIVE_HOLD_ENABLE != 0U) && (stop_align_ready != 0U)) {
+    if (((CHASSIS_IDLE_DRIVE_HOLD_ENABLE != 0U) && (stop_align_ready != 0U)) ||
+        (drive_wait_steering_ready == 0U)) {
         ChassisHoldDriveMotors();
     } else {
         ChassisSetDriveMotorRef(motor_lf, vt_lf, CHASSIS_ID3_M3508_SPEED_DEADBAND);

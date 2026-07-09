@@ -81,6 +81,26 @@ static uint8_t Remote_CrsfToThreePosSwitch(uint16_t raw)
     return 3U;
 }
 
+static uint8_t Remote_CrsfToSixPosSwitch(uint16_t raw)
+{
+    if (raw < 342U) {
+        return 1U;
+    }
+    if (raw < 657U) {
+        return 2U;
+    }
+    if (raw < 991U) {
+        return 3U;
+    }
+    if (raw < 1325U) {
+        return 4U;
+    }
+    if (raw < 1640U) {
+        return 5U;
+    }
+    return 6U;
+}
+
 static uint8_t Remote_CrsfToTwoPosSwitch(uint16_t raw)
 {
     return (raw < CRSF_CHANNEL_CENTER) ? 1U : 2U;
@@ -123,6 +143,7 @@ static void Remote_UpdateBoxerData(const uint16_t *channels)
     remote_boxer.sd = Remote_CrsfToTwoPosSwitch(Remote_ChannelRaw(channels, REMOTE_BOXER_CH_SD));
     remote_boxer.se = Remote_CrsfToTwoPosSwitch(Remote_ChannelRaw(channels, REMOTE_BOXER_CH_SE));
     remote_boxer.sf = Remote_CrsfToTwoPosSwitch(Remote_ChannelRaw(channels, REMOTE_BOXER_CH_SF));
+    remote_boxer.six_pos = Remote_CrsfToSixPosSwitch(Remote_ChannelRaw(channels, REMOTE_BOXER_CH_6POS));
 }
 
 /**
