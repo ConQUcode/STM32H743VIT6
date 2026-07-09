@@ -52,9 +52,9 @@ static float dm4310_target_vel = 1.5f;
 /* 左1右2流程中，达妙到达 level_pos 后等待多久再执行后续动作，单位 ms。 */
 #define LIFT_SECOND_LEVEL_WAIT_MS 300U
 /* 左1右2流程中，PC2 拉低后再等待多久才启动 3508 下行判断，单位 ms。 */
-#define LIFT_SECOND_PC2_LOW_WAIT_MS 500U
+#define LIFT_SECOND_PC2_LOW_WAIT_MS 700U
 /* 左1右2流程中，3508 判定堵转/接触限位的电流阈值。 */
-#define LIFT_SECOND_CURRENT_LIMIT 2500
+#define LIFT_SECOND_CURRENT_LIMIT 2000
 /* 左1右2流程中，3508 进入速度环后延时多久再开始检测电流，单位 ms。 */
 #define LIFT_SECOND_CURRENT_DELAY_MS 300U
 /* 左1右2流程完成后，KEY0/KEY1 手动控制 3508 上下运动的速度目标。 */
@@ -677,18 +677,20 @@ void CatchTask(void)
                     FeiteBigOpen();
                 }
             } else {
-                /* 左1但右拨杆不是 1/2/3: 回到默认保持状态。 */
+                /* 左1但右拨杆不是 1/2/3: 3508 先回默认角度，到位后再把 PC2 置高。 */
                 level_action_started = 0U;
                 lift_manual_dir = 0;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
                 release_wait_start_time = 0U;
-                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
                 DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
                 DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
+                if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
+                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                }
             }
         } else {
-            /* 非左1工作区间: 清所有状态机，PC2 高电平，3508 先回默认角度，到位后再飞特张开。 */
+            /* 非左1工作区间: 清状态机，3508 先回默认角度，到位后 PC2 置高并飞特张开。 */
             feite_catch_started = 0U;
             feite_over_current_count = 0U;
             feite_protected = 0U;
@@ -697,13 +699,13 @@ void CatchTask(void)
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
             release_wait_start_time = 0U;
-            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             if (dm4310_motor != NULL) {
                 DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
             }
             if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
+                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
                 FeiteOpen();
             }
         }
