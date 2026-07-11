@@ -27,14 +27,12 @@ static DJIMotor_Instance *DJM2006, *DJM3508;
 static DMMotor_Instance *dm4310_motor;
 
 /* 达妙初始位置，单位 rad。 */
-static float init_pos = -1.8f;
+static float init_pos = -1.835f;
 /* 达妙 level 位置: 从 init_pos 正方向旋转 90 度后的目标位置，单位 rad。 */
-static float level_pos = -0.2292f;
+static float level_pos = -0.2642f;
 /* 达妙位置速度模式下的目标速度。 */
 static float dm4310_target_vel = 1.5f;
 
-/* KEY0 触发动作后 PC2 延时切换的时间，单位 ms。 */
-#define CATCH_PC2_DELAY_MS 2000U
 /* 判断达妙已经到达 level_pos 的允许误差，单位 rad。 */
 #define DM_LEVEL_POS_TOL_RAD      0.15f
 /* 3508 默认角度目标；不在状态机流程内时保持在该位置。 */
@@ -46,19 +44,21 @@ static float dm4310_target_vel = 1.5f;
 /* 左1右2流程中，3508 堵转复位阶段的速度环目标。 */
 #define LIFT_SECOND_SPEED_REF     (-5000)
 /* 左1右2流程开始时，3508 先上升到该角度后再执行达妙 level 流程。 */
-#define LIFT_SECOND_PRE_UP_REF    21000.0f
+#define LIFT_SECOND_PRE_UP_REF    20000.0f
 /* 左1右2流程开始时，判断 3508 已经上升到位的角度死区。 */
 #define LIFT_SECOND_PRE_UP_TOL    400.0f
 /* 左1右2流程中，达妙到达 level_pos 后等待多久再执行后续动作，单位 ms。 */
 #define LIFT_SECOND_LEVEL_WAIT_MS 300U
 /* 左1右2流程中，PC2 拉低后再等待多久才启动 3508 下行判断，单位 ms。 */
-#define LIFT_SECOND_PC2_LOW_WAIT_MS 700U
+#define LIFT_SECOND_PC2_LOW_WAIT_MS 500U
 /* 左1右2流程中，3508 判定堵转/接触限位的电流阈值。 */
-#define LIFT_SECOND_CURRENT_LIMIT 2000
+#define LIFT_SECOND_CURRENT_LIMIT 1900
+/* 左1右2流程中，低于该角度时允许电流堵转触发下一状态。 */
+#define LIFT_SECOND_STALL_ANGLE_MAX 12000.0f
+/* 左1右2流程中，低于该角度时不等堵转电流，直接触发下一状态。 */
+#define LIFT_SECOND_FORCE_NEXT_ANGLE 10000.0f
 /* 左1右2流程中，3508 进入速度环后延时多久再开始检测电流，单位 ms。 */
-#define LIFT_SECOND_CURRENT_DELAY_MS 300U
-/* 左1右2流程完成后，KEY0/KEY1 手动控制 3508 上下运动的速度目标。 */
-#define LIFT_MANUAL_SPEED_REF     3000
+#define LIFT_SECOND_CURRENT_DELAY_MS 900U
 /* 左1右3释放流程中，3508 先在当前角度基础上上升的增量。 */
 #define LIFT_RELEASE_RAISE_DELTA  2500.0f
 /* 左1右3释放流程中，PC2 动作前 3508 下降到的第一目标角度。 */
@@ -88,7 +88,7 @@ static float dm4310_target_vel = 1.5f;
 /* 连续超过电流阈值多少次后进入保护。 */
 #define FEITE_CURRENT_LIMIT_COUNT 3U
 /* 左1右2中 3508 堵转保持后，飞特张开/重新闭合各自等待的时间，单位 ms。 */
-#define FEITE_SECOND_REGRIP_DELAY_MS 2000U
+#define FEITE_SECOND_REGRIP_DELAY_MS 2500U
 
 /* 升降机构初始化标志: is_init_3508 为 1 后 CatchTask 才执行遥控器状态机。 */
 static int8_t is_init_2006 = 0;
@@ -99,11 +99,6 @@ int IR_sensor_level;
 float control;
 volatile uint8_t catch_remote_switch_left;
 volatile uint8_t catch_remote_switch_right;
-
-/* 左1右2流程完成后，记录 KEY0/KEY1 手动控制 3508 的方向和按键边沿。 */
-static int8_t lift_manual_dir = 0;
-static uint8_t lift_key0_last = 1U;
-static uint8_t lift_key1_last = 1U;
 
 /* 初始化飞特舵机总线和 ID=3 的夹爪舵机。 */
 static void FeiteMotorsInit(void)
@@ -333,7 +328,7 @@ void CatchTask(void)
      * 5 达妙到位后等待 LIFT_SECOND_LEVEL_WAIT_MS；
      * 6 PC2 拉低后等待 LIFT_SECOND_PC2_LOW_WAIT_MS；
      * 2 3508 速度环下行并检测堵转电流；
-     * 3 3508 角度环保持，飞特重抓完成后允许 KEY0/KEY1 手动控制。
+     * 3 3508 角度环保持，飞特重抓完成后保持当前角度。
      */
     static uint8_t level_action_started = 0U;
     static uint32_t lift_second_start_time = 0U;
@@ -390,7 +385,6 @@ void CatchTask(void)
             if (catch_switch_right == 1U) {
                 FeiteCatch();
                 level_action_started = 0U;
-                lift_manual_dir = 0;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
                 release_wait_start_time = 0U;
@@ -450,7 +444,7 @@ void CatchTask(void)
              * 1. 达妙先转到 level_pos，转到位前 PC2 保持高电平。
              * 2. 达妙到位后 PC2 拉低，3508 进入速度环向负方向运动。
              * 3. 延时 LIFT_SECOND_CURRENT_DELAY_MS 后开始检测 3508 电流，超过阈值后保持当前角度。
-             * 4. 流程完成后，KEY0/KEY1 可临时切换 3508 到速度环手动上/下，松开后保持当前角度。
+             * 4. 飞特张开/重新闭合完成后，3508 继续保持堵转检测时记录的角度。
              */
             if ((catch_switch_left == 1U) &&
                 (catch_switch_right == 2U)) {
@@ -532,8 +526,10 @@ void CatchTask(void)
                     DJIMotorOuterLoop(DJM3508, SPEED_LOOP);
                     DJIMotorSetRef(DJM3508, LIFT_SECOND_SPEED_REF);
 
-                    if (((uint32_t)(HAL_GetTick() - lift_second_start_time) >= LIFT_SECOND_CURRENT_DELAY_MS) &&
-                        (abs(DJM3508->measure.real_current) > LIFT_SECOND_CURRENT_LIMIT)) {
+                    if ((DJM3508->measure.total_angle < LIFT_SECOND_FORCE_NEXT_ANGLE) ||
+                        (((uint32_t)(HAL_GetTick() - lift_second_start_time) >= LIFT_SECOND_CURRENT_DELAY_MS) &&
+                         (DJM3508->measure.total_angle < LIFT_SECOND_STALL_ANGLE_MAX) &&
+                         (abs(DJM3508->measure.real_current) > LIFT_SECOND_CURRENT_LIMIT))) {
                         level_action_started = 3U;
                         lift_hold_angle = DJM3508->measure.total_angle;
                         DJIMotorStop(DJM3508);
@@ -571,59 +567,16 @@ void CatchTask(void)
                         }
                     }
 
-                    /* 飞特重抓未完成前，不允许 KEY0/KEY1 手动控制打断流程。 */
                     if (feite_second_regrip_state != 3U) {
-                        lift_key0_last = remote_data->KEY[0];
-                        lift_key1_last = remote_data->KEY[1];
                         FeiteMotorControl();
                         return;
                     }
-
-                    /* 重抓完成后，KEY0 按下上行，松开后保持当前角度。 */
-                    if ((lift_key0_last == 1U) && (remote_data->KEY[0] == 0U)) {
-                        lift_manual_dir = 1;
-                        DJIMotorOuterLoop(DJM3508, SPEED_LOOP);
-                        DJIMotorSetRef(DJM3508, LIFT_MANUAL_SPEED_REF);
-                    } else if ((lift_key0_last == 0U) && (remote_data->KEY[0] == 1U) && (lift_manual_dir == 1)) {
-                        lift_manual_dir = 0;
-                        lift_hold_angle = DJM3508->measure.total_angle;
-                        DJIMotorStop(DJM3508);
-                        DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                        DJIMotorEnable(DJM3508);
-                        DJIMotorSetRef(DJM3508, lift_hold_angle);
-                    }
-
-                    /* 重抓完成后，KEY1 按下下行，松开后保持当前角度。 */
-                    if ((lift_key1_last == 1U) && (remote_data->KEY[1] == 0U)) {
-                        lift_manual_dir = -1;
-                        DJIMotorOuterLoop(DJM3508, SPEED_LOOP);
-                        DJIMotorSetRef(DJM3508, -LIFT_MANUAL_SPEED_REF);
-                    } else if ((lift_key1_last == 0U) && (remote_data->KEY[1] == 1U) && (lift_manual_dir == -1)) {
-                        lift_manual_dir = 0;
-                        lift_hold_angle = DJM3508->measure.total_angle;
-                        DJIMotorStop(DJM3508);
-                        DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                        DJIMotorEnable(DJM3508);
-                        DJIMotorSetRef(DJM3508, lift_hold_angle);
-                    }
-
-                    if (lift_manual_dir > 0) {
-                        DJIMotorOuterLoop(DJM3508, SPEED_LOOP);
-                        DJIMotorSetRef(DJM3508, LIFT_MANUAL_SPEED_REF);
-                    } else if (lift_manual_dir < 0) {
-                        DJIMotorOuterLoop(DJM3508, SPEED_LOOP);
-                        DJIMotorSetRef(DJM3508, -LIFT_MANUAL_SPEED_REF);
-                    }
                 }
-
-                lift_key0_last = remote_data->KEY[0];
-                lift_key1_last = remote_data->KEY[1];
 
             } else if ((catch_switch_left == 1U) &&
                        (catch_switch_right == 3U)) {
                 /* 左1右3: 释放流程，先上升，再下降，PC2 拉低后飞特大张开。 */
                 level_action_started = 0U;
-                lift_manual_dir = 0;
                 feite_second_regrip_state = 0U;
 
                 if (release_action_started == 0U) {
@@ -679,7 +632,6 @@ void CatchTask(void)
             } else {
                 /* 左1但右拨杆不是 1/2/3: 3508 先回默认角度，到位后再把 PC2 置高。 */
                 level_action_started = 0U;
-                lift_manual_dir = 0;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
                 release_wait_start_time = 0U;
@@ -695,7 +647,6 @@ void CatchTask(void)
             feite_over_current_count = 0U;
             feite_protected = 0U;
             level_action_started = 0U;
-            lift_manual_dir = 0;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
             release_wait_start_time = 0U;

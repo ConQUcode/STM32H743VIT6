@@ -1,0 +1,39 @@
+STM32H743VIT6-main\MOUDLE\remote\remote.h:115:extern Remote_Crsf_Debug_s remote_crsf_debug; // CRSF接收调试数据
+STM32H743VIT6-main\MOUDLE\remote\remote.c:16:Remote_Crsf_Debug_s remote_crsf_debug;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:170:        remote_crsf_debug.raw_channels[ch] = channels[ch];
+STM32H743VIT6-main\MOUDLE\remote\remote.c:171:        remote_crsf_debug.centered_channels[ch] = Remote_CrsfCentered(channels[ch]);
+STM32H743VIT6-main\MOUDLE\remote\remote.c:191:    remote_crsf_debug.rc_frame_count++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:220:    remote_crsf_debug.parse_events++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:221:    remote_crsf_debug.last_write_idx = write_idx;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:233:            remote_crsf_debug.sync_lost_count++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:240:        remote_crsf_debug.last_address = address;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:241:        remote_crsf_debug.last_frame_len = length;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:245:            remote_crsf_debug.length_error_count++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:260:        remote_crsf_debug.last_frame_type = frame[2];
+STM32H743VIT6-main\MOUDLE\remote\remote.c:261:        remote_crsf_debug.last_crc_received = crc_received;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:262:        remote_crsf_debug.last_crc_calculated = crc_calculated;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:266:            remote_crsf_debug.crc_error_count++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:270:        remote_crsf_debug.valid_frame_count++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:271:        remote_crsf_debug.last_frame_time = HAL_GetTick();
+STM32H743VIT6-main\MOUDLE\remote\remote.c:289:    memset(&remote_crsf_debug, 0, sizeof(remote_crsf_debug));
+STM32H743VIT6-main\MOUDLE\remote\remote.c:293:    remote_dev->huart = &huart6;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:294:    remote_dev->task_handle = Remot_TaskHandle; // 绑定目标挂起任务的句柄
+STM32H743VIT6-main\MOUDLE\remote\remote.c:297:    if (remote_dev->huart->hdmarx != NULL) {
+STM32H743VIT6-main\MOUDLE\remote\remote.c:298:        remote_dev->huart->hdmarx->Init.Mode = DMA_CIRCULAR;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:299:        HAL_DMA_Init(remote_dev->huart->hdmarx);
+STM32H743VIT6-main\MOUDLE\remote\remote.c:303:    HAL_UARTEx_ReceiveToIdle_DMA(remote_dev->huart, remote_dev->rx_buf, sizeof(remote_dev->rx_buf));
+STM32H743VIT6-main\MOUDLE\remote\remote.c:328:    if (remote_dev != NULL && remote_dev->huart == huart) {
+STM32H743VIT6-main\MOUDLE\remote\remote.c:329:        remote_crsf_debug.isr_rx_events++;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:330:        remote_crsf_debug.last_rx_size = Size;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:336:        if (remote_dev->task_handle == NULL) {
+STM32H743VIT6-main\MOUDLE\remote\remote.c:337:            remote_dev->task_handle = Remot_TaskHandle;
+STM32H743VIT6-main\MOUDLE\remote\remote.c:341:        if (remote_dev->task_handle != NULL) {
+STM32H743VIT6-main\MOUDLE\remote\remote.c:342:            osThreadFlagsSet(remote_dev->task_handle, 0x01);
+STM32H743VIT6-main\MOUDLE\remote\remote.c:351:	if (remote_dev != NULL && remote_dev->huart == huart) {
+STM32H743VIT6-main\MOUDLE\remote\remote.c:355:        HAL_UARTEx_ReceiveToIdle_DMA(huart, remote_dev->rx_buf, sizeof(remote_dev->rx_buf));
+STM32H743VIT6-main\APPLICATION\chasis.c:119:#define CHASSIS_REMOTE_TIMEOUT_MS 300U                // 遥控器超时时间: 超过该时间未收到新帧则底盘参考值清零
+STM32H743VIT6-main\APPLICATION\chasis.c:914:    if (remote_dev->last_update_time == 0U) {
+STM32H743VIT6-main\APPLICATION\chasis.c:919:    if ((now - remote_dev->last_update_time) > CHASSIS_REMOTE_TIMEOUT_MS) {
+STM32H743VIT6-main\APPLICATION\chasis.c:1498:        vx = CHASSIS_REMOTE_VX_SIGN * (float)remote_boxer.right_y / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+STM32H743VIT6-main\APPLICATION\chasis.c:1500:        vy = CHASSIS_REMOTE_VY_SIGN * (float)remote_boxer.right_x / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+STM32H743VIT6-main\APPLICATION\chasis.c:1502:        vw = CHASSIS_REMOTE_VW_SIGN * (float)remote_boxer.left_x / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR;

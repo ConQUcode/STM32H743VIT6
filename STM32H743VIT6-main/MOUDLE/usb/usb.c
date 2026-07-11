@@ -37,6 +37,40 @@ static volatile uint32_t rb_tail = 0; // 读取位置
 /* 用于保存协议数据的全局变量 */
 USB_Chassis_Cmd_s usb_chassis_cmd;
 uint32_t usb_last_recv_time = 0;
+USB_ScreenLink_s usb_screen_link;
+
+#define USB_SCREEN_SOF0                 0xA5U
+#define USB_SCREEN_SOF1                 0x5AU
+#define USB_SCREEN_VERSION              0x01U
+#define USB_SCREEN_TYPE_NEXT            0x01U
+#define USB_SCREEN_TYPE_ACK             0x81U
+#define USB_SCREEN_MAX_PAYLOAD          64U
+#define USB_SCREEN_ACK_TIMEOUT_MS       150U
+#define USB_SCREEN_NEW_CMD_INTERVAL_MS  50U
+#define USB_SCREEN_MAX_RETRY            3U
+
+typedef enum {
+    USB_SCREEN_RX_WAIT_SOF0 = 0,
+    USB_SCREEN_RX_WAIT_SOF1,
+    USB_SCREEN_RX_WAIT_VERSION,
+    USB_SCREEN_RX_WAIT_TYPE,
+    USB_SCREEN_RX_WAIT_SEQ,
+    USB_SCREEN_RX_WAIT_LEN,
+    USB_SCREEN_RX_WAIT_PAYLOAD,
+    USB_SCREEN_RX_WAIT_CRC_LO,
+    USB_SCREEN_RX_WAIT_CRC_HI,
+} USB_ScreenRxState_e;
+
+static struct {
+    uint8_t state;
+    uint8_t version;
+    uint8_t type;
+    uint8_t seq;
+    uint8_t len;
+    uint8_t idx;
+    uint8_t payload[USB_SCREEN_MAX_PAYLOAD];
+    uint8_t crc_lo;
+} usb_screen_rx;
 
 /**
  * @brief USB模块初始化
@@ -57,6 +91,8 @@ void USB_Init(void)
         
         memset(&usb_chassis_cmd, 0, sizeof(usb_chassis_cmd));
         usb_last_recv_time = 0;
+        memset(&usb_screen_link, 0, sizeof(usb_screen_link));
+        memset(&usb_screen_rx, 0, sizeof(usb_screen_rx));
     }
 }
 
@@ -167,6 +203,78 @@ uint32_t USB_ReadRingBuffer(uint8_t *data, uint32_t len)
 // 由于是由外部工具生成，手动在此声明下解析函数
 extern void protocol_fsm_feed(uint8_t byte);
 
+static uint16_t USB_ScreenCrc16(const uint8_t *data, uint16_t len)
+{
+    uint16_t crc = 0xFFFFU;
+    while (len-- > 0U) {
+        crc ^= *data++;
+        for (uint8_t i = 0; i < 8U; i++) crc = (crc & 1U) ? (crc >> 1U) ^ 0xA001U : (crc >> 1U);
+    }
+    return crc;
+}
+
+static void USB_ScreenResetRx(void) { memset(&usb_screen_rx, 0, sizeof(usb_screen_rx)); }
+
+static uint8_t USB_ScreenSendFrame(uint8_t type, uint8_t seq, const uint8_t *payload, uint8_t len)
+{
+    uint8_t frame[72]; uint16_t crc; uint8_t idx = 0;
+    if (len > USB_SCREEN_MAX_PAYLOAD) return USBD_FAIL;
+    frame[idx++] = USB_SCREEN_SOF0; frame[idx++] = USB_SCREEN_SOF1; frame[idx++] = USB_SCREEN_VERSION;
+    frame[idx++] = type; frame[idx++] = seq; frame[idx++] = len;
+    if ((payload != NULL) && (len > 0U)) { memcpy(&frame[idx], payload, len); idx = (uint8_t)(idx + len); }
+    crc = USB_ScreenCrc16(&frame[2], (uint16_t)(4U + len)); frame[idx++] = (uint8_t)(crc & 0xFFU); frame[idx++] = (uint8_t)(crc >> 8U);
+    return USB_Transmit(frame, idx);
+}
+
+static void USB_ScreenHandleFrame(uint8_t type, uint8_t seq, const uint8_t *payload, uint8_t len)
+{
+    if ((type == USB_SCREEN_TYPE_ACK) && (len == 1U) && (payload[0] == USB_SCREEN_TYPE_NEXT)) {
+        usb_screen_link.last_ack_seq = seq; usb_screen_link.last_ack_type = payload[0]; usb_screen_link.ack_flag = 1U;
+        if ((usb_screen_link.state == USB_SCREEN_WAIT_ACK) && (seq == usb_screen_link.pending_seq)) usb_screen_link.state = USB_SCREEN_IDLE;
+    }
+}
+
+static void USB_ScreenFeedByte(uint8_t byte)
+{
+    switch (usb_screen_rx.state) {
+        case USB_SCREEN_RX_WAIT_SOF0: usb_screen_rx.state = (byte == USB_SCREEN_SOF0) ? USB_SCREEN_RX_WAIT_SOF1 : USB_SCREEN_RX_WAIT_SOF0; break;
+        case USB_SCREEN_RX_WAIT_SOF1: usb_screen_rx.state = (byte == USB_SCREEN_SOF1) ? USB_SCREEN_RX_WAIT_VERSION : USB_SCREEN_RX_WAIT_SOF0; break;
+        case USB_SCREEN_RX_WAIT_VERSION: usb_screen_rx.version = byte; usb_screen_rx.state = (byte == USB_SCREEN_VERSION) ? USB_SCREEN_RX_WAIT_TYPE : USB_SCREEN_RX_WAIT_SOF0; break;
+        case USB_SCREEN_RX_WAIT_TYPE: usb_screen_rx.type = byte; usb_screen_rx.state = USB_SCREEN_RX_WAIT_SEQ; break;
+        case USB_SCREEN_RX_WAIT_SEQ: usb_screen_rx.seq = byte; usb_screen_rx.state = USB_SCREEN_RX_WAIT_LEN; break;
+        case USB_SCREEN_RX_WAIT_LEN: usb_screen_rx.len = byte; usb_screen_rx.idx = 0U; usb_screen_rx.state = (byte > USB_SCREEN_MAX_PAYLOAD) ? USB_SCREEN_RX_WAIT_SOF0 : ((byte == 0U) ? USB_SCREEN_RX_WAIT_CRC_LO : USB_SCREEN_RX_WAIT_PAYLOAD); break;
+        case USB_SCREEN_RX_WAIT_PAYLOAD: usb_screen_rx.payload[usb_screen_rx.idx++] = byte; if (usb_screen_rx.idx >= usb_screen_rx.len) usb_screen_rx.state = USB_SCREEN_RX_WAIT_CRC_LO; break;
+        case USB_SCREEN_RX_WAIT_CRC_LO: usb_screen_rx.crc_lo = byte; usb_screen_rx.state = USB_SCREEN_RX_WAIT_CRC_HI; break;
+        case USB_SCREEN_RX_WAIT_CRC_HI: { uint8_t frame[68]; uint16_t crc; frame[0] = usb_screen_rx.version; frame[1] = usb_screen_rx.type; frame[2] = usb_screen_rx.seq; frame[3] = usb_screen_rx.len; if (usb_screen_rx.len > 0U) memcpy(&frame[4], usb_screen_rx.payload, usb_screen_rx.len); crc = USB_ScreenCrc16(frame, (uint16_t)(4U + usb_screen_rx.len)); if ((usb_screen_rx.crc_lo == (uint8_t)(crc & 0xFFU)) && (byte == (uint8_t)(crc >> 8U))) USB_ScreenHandleFrame(usb_screen_rx.type, usb_screen_rx.seq, usb_screen_rx.payload, usb_screen_rx.len); USB_ScreenResetRx(); } break;
+        default: USB_ScreenResetRx(); break;
+    }
+}
+
+uint8_t USB_ScreenSendNext(void)
+{
+    uint32_t now = HAL_GetTick(); uint8_t seq = usb_screen_link.next_seq;
+    if (usb_screen_link.state == USB_SCREEN_WAIT_ACK) return USBD_BUSY;
+    if ((uint32_t)(now - usb_screen_link.last_send_tick) < USB_SCREEN_NEW_CMD_INTERVAL_MS) return USBD_BUSY;
+    if (USB_ScreenSendFrame(USB_SCREEN_TYPE_NEXT, seq, NULL, 0U) != USBD_OK) return USBD_BUSY;
+    usb_screen_link.pending_seq = seq; usb_screen_link.next_seq = (uint8_t)(seq + 1U); usb_screen_link.retry_count = 0U;
+    usb_screen_link.state = USB_SCREEN_WAIT_ACK; usb_screen_link.wait_ack_start_tick = now; usb_screen_link.last_send_tick = now;
+    usb_screen_link.ack_flag = 0U; usb_screen_link.last_error = 0U; return USBD_OK;
+}
+
+void USB_ScreenTask(void)
+{
+    uint32_t now = HAL_GetTick();
+    if (usb_screen_link.state != USB_SCREEN_WAIT_ACK) return;
+    if ((uint32_t)(now - usb_screen_link.wait_ack_start_tick) < USB_SCREEN_ACK_TIMEOUT_MS) return;
+    if (usb_screen_link.retry_count >= USB_SCREEN_MAX_RETRY) { usb_screen_link.state = USB_SCREEN_ERROR; usb_screen_link.last_error = 1U; return; }
+    if (USB_ScreenSendFrame(USB_SCREEN_TYPE_NEXT, usb_screen_link.pending_seq, NULL, 0U) == USBD_OK) {
+        usb_screen_link.retry_count++; usb_screen_link.wait_ack_start_tick = now; usb_screen_link.last_send_tick = now;
+    }
+}
+
+uint8_t USB_ScreenIsBusy(void) { return (usb_screen_link.state == USB_SCREEN_WAIT_ACK) ? 1U : 0U; }
+void USB_ScreenClearAckFlag(void) { usb_screen_link.ack_flag = 0U; }
+
 /**
  * @brief USB数据解析任务
  * @note 请在外部主循环或RTOS任务中周期性调用（如每包调用一次或使用死循环和osDelay）
@@ -174,11 +282,12 @@ extern void protocol_fsm_feed(uint8_t byte);
 void USB_ProcessTask(void)
 {
     uint8_t rx_byte;
-    // 将环形缓冲区内所有未处理的数据取空，送入协议状态机
     while (USB_ReadRingBuffer(&rx_byte, 1) > 0)
     {
         protocol_fsm_feed(rx_byte);
+        USB_ScreenFeedByte(rx_byte);
     }
+    USB_ScreenTask();
 }
 
 void serial_write_byte(uint8_t byte)

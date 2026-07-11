@@ -16,6 +16,25 @@
 /* USB接收数据回调函数类型 */
 typedef void (*usb_rx_callback_t)(uint8_t *data, uint32_t len);
 
+typedef enum {
+    USB_SCREEN_IDLE = 0,
+    USB_SCREEN_WAIT_ACK,
+    USB_SCREEN_ERROR,
+} USB_ScreenState_e;
+
+typedef struct {
+    uint8_t next_seq;
+    uint8_t pending_seq;
+    uint8_t retry_count;
+    uint8_t last_ack_seq;
+    uint8_t last_ack_type;
+    uint8_t ack_flag;
+    uint8_t last_error;
+    USB_ScreenState_e state;
+    uint32_t last_send_tick;
+    uint32_t wait_ack_start_tick;
+} USB_ScreenLink_s;
+
 /* 对外暴露给 CubeMX (usbd_cdc_if.c) 的 MPU Non-Cacheable 安全数组 */
 extern uint8_t usb_rx_buffer[USB_RX_BUFFER_SIZE];
 extern uint8_t usb_tx_buffer[USB_TX_BUFFER_SIZE];
@@ -78,5 +97,11 @@ typedef struct {
 /* 外部变量声明 (记录了解析后的协议指令) */
 extern USB_Chassis_Cmd_s usb_chassis_cmd;
 extern uint32_t usb_last_recv_time;
+extern USB_ScreenLink_s usb_screen_link;
+
+uint8_t USB_ScreenSendNext(void);
+void USB_ScreenTask(void);
+uint8_t USB_ScreenIsBusy(void);
+void USB_ScreenClearAckFlag(void);
 
 #endif // USB_H
