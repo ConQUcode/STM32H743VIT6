@@ -17,6 +17,7 @@
 #include "DJI_motor.h"
 #include "cmsis_os.h"
 #include "dm_motor.h"
+#include "remote_logic_profile.h"
 #include <math.h>
 
 /* 飞特舵机实例: 当前只使用 FT_3 控制夹爪，其余实例暂时预留。 */
@@ -39,9 +40,15 @@ static float dm4310_target_vel = 1.5f;
 /* 判断达妙已经到达 level_pos 的允许误差，单位 rad。 */
 #define DM_LEVEL_POS_TOL_RAD      0.15f
 /* 3508 默认角度目标；不在状态机流程内时保持在该位置。 */
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+#define LIFT_DEFAULT_ANGLE_REF    5000
+#else
 #define LIFT_DEFAULT_ANGLE_REF    18000
+#endif
 /* 非左1工作区间中，3508 回默认角度后才允许飞特张开的到位死区。 */
 #define LIFT_DEFAULT_ANGLE_TOL    500.0f
+/* 第二套遥控逻辑中 six_pos=4 的 3508 目标。 */
+#define LIFT_ALT_MOVE_ANGLE_REF   20000.0f
 /* 左1右1抓取完成后，3508 上抬到该角度目标。 */
 #define LIFT_CATCH_RAISE_REF      21000.0f
 /* 左1右2流程中，3508 堵转复位阶段的速度环目标。 */
@@ -422,6 +429,10 @@ void CatchTask(void)
      */
     static uint8_t feite_second_regrip_state = 0U;
     static uint32_t feite_second_regrip_time = 0U;
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+    static uint8_t alt_catch_unlocked = 0U;
+    static uint8_t alt_arm_seen = 0U;
+#endif
 
     LiftInit();
     FeiteReadFeedbackPeriodically();
@@ -436,9 +447,16 @@ void CatchTask(void)
         uint8_t catch_mode_active = CatchRemoteTaskModeIsCatch();
         uint8_t catch_switch_left = CatchRemoteLeftSwitch();
         uint8_t catch_six_pos = CatchRemoteSixPos();
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+        uint8_t catch_level_adjust_active = 0U;
+        float catch_level_target_pos = level_pos;
+
+        (void)CatchLevelAdjustTarget(catch_level_adjust_active);
+#else
         uint8_t catch_level_adjust_active =
             ((catch_mode_active != 0U) && (catch_six_pos == 3U)) ? 1U : 0U;
         float catch_level_target_pos = CatchLevelAdjustTarget(catch_level_adjust_active);
+#endif
 
         catch_remote_mode = catch_mode_active;
         catch_remote_sb = catch_switch_left;
@@ -446,6 +464,135 @@ void CatchTask(void)
         catch_remote_switch_left = catch_switch_left;
         catch_remote_switch_right = catch_six_pos;
 
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+        if (catch_mode_active == 0U) {
+            if (remote_boxer.sa == 2U) {
+                alt_arm_seen = 1U;
+            }
+            alt_catch_unlocked = 0U;
+            feite_catch_started = 0U;
+            feite_over_current_count = 0U;
+            feite_protected = 0U;
+            level_action_started = 0U;
+            feite_second_regrip_state = 0U;
+            release_action_started = 0U;
+            release_wait_start_time = 0U;
+            DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
+            DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
+            FeiteMotorControl();
+            return;
+        }
+
+        if (alt_catch_unlocked == 0U) {
+            uint8_t required_six_pos = (alt_arm_seen != 0U) ? 2U : 1U;
+
+            if (catch_six_pos != required_six_pos) {
+                feite_catch_started = 0U;
+                feite_over_current_count = 0U;
+                feite_protected = 0U;
+                level_action_started = 0U;
+                feite_second_regrip_state = 0U;
+                release_action_started = 0U;
+                release_wait_start_time = 0U;
+                DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
+                DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
+                if (dm4310_motor != NULL) {
+                    DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
+                }
+                if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
+                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                    FeiteOpen();
+                }
+                FeiteMotorControl();
+                return;
+            }
+
+            alt_catch_unlocked = 1U;
+        }
+
+        if (catch_six_pos == 2U) {
+            FeiteCatch();
+            level_action_started = 0U;
+            feite_second_regrip_state = 0U;
+            release_action_started = 0U;
+            release_wait_start_time = 0U;
+
+            if (feite_catch_started == 0U) {
+                feite_catch_started = 1U;
+                feite_catch_start_time = HAL_GetTick();
+                feite_current_check_time = HAL_GetTick();
+                feite_over_current_count = 0U;
+                feite_protected = 0U;
+                FeiteMotorSetTorque(FT_3, FEITE_CATCH_TORQUE);
+            } else if ((uint32_t)(HAL_GetTick() - feite_current_check_time) >= FEITE_CURRENT_CHECK_MS) {
+                feite_current_check_time = HAL_GetTick();
+                if (FeiteMotorReadCurrent(FT_3) == HAL_OK) {
+                    int16_t current = FT_3->measure.current_signed;
+
+                    if (current < 0) {
+                        current = (int16_t)(-current);
+                    }
+
+                    if ((uint16_t)current >= FEITE_CURRENT_LIMIT_RAW) {
+                        if (feite_over_current_count < FEITE_CURRENT_LIMIT_COUNT) {
+                            feite_over_current_count++;
+                        }
+                    } else {
+                        feite_over_current_count = 0U;
+                    }
+
+                    if (feite_over_current_count >= FEITE_CURRENT_LIMIT_COUNT) {
+                        feite_protected = 1U;
+                    }
+                }
+            }
+
+            if ((feite_protected != 0U) ||
+                ((uint32_t)(HAL_GetTick() - feite_catch_start_time) >= FEITE_TORQUE_PROTECT_MS)) {
+                FeiteMotorSetTorque(FT_3, FEITE_HOLD_TORQUE);
+            }
+        } else {
+            feite_catch_started = 0U;
+            feite_over_current_count = 0U;
+            feite_protected = 0U;
+        }
+
+        if (catch_six_pos == 3U) {
+            level_action_started = 0U;
+            feite_second_regrip_state = 0U;
+            release_action_started = 0U;
+            release_wait_start_time = 0U;
+
+            if (dm4310_motor != NULL) {
+                DMMotorSetPosVelRef(dm4310_motor, catch_level_target_pos, dm4310_target_vel);
+                if (dm4310_motor->measure.state != 1U) {
+                    DMMotorEnable(dm4310_motor);
+                }
+            }
+        } else if (catch_six_pos == 4U) {
+            level_action_started = 0U;
+            feite_second_regrip_state = 0U;
+            release_action_started = 0U;
+            release_wait_start_time = 0U;
+            DJIMotorEnable(DJM3508);
+            DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
+            DJIMotorSetRef(DJM3508, LIFT_ALT_MOVE_ANGLE_REF);
+        } else if (catch_six_pos != 2U) {
+            level_action_started = 0U;
+            feite_second_regrip_state = 0U;
+            release_action_started = 0U;
+            release_wait_start_time = 0U;
+            DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
+            DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
+            if (dm4310_motor != NULL) {
+                DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
+            }
+            if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
+                HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                FeiteOpen();
+            }
+        }
+#else
         if ((catch_mode_active != 0U) &&
             ((catch_six_pos == 2U) || (catch_six_pos == 3U) || (catch_six_pos == 4U))) {
 
@@ -726,6 +873,7 @@ void CatchTask(void)
                 FeiteOpen();
             }
         }
+#endif
     }
 
     FeiteMotorControl();

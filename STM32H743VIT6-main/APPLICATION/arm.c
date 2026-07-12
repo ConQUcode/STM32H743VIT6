@@ -10,6 +10,7 @@
 #include "main.h"
 #include "general_def.h"
 #include "usb.h"
+#include "remote_logic_profile.h"
 #include <math.h>
 
 #define AIR_MODULE_1_GPIO_PORT GPIOD
@@ -197,6 +198,45 @@ static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
 {
     uint8_t current_sd = remote_boxer.sd;
 
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+    /*
+     * Profile ALT assumes the J1 air pump is wired to AirModule1 (PD2).
+     * AirModule2 is the original J2/arm pump path and is held off here.
+     */
+    if (ArmRemoteTaskModeIsCatch() != 0U) {
+        Arm_AirModule1Set(0U);
+        Arm_AirModule2Set(0U);
+
+        if ((catch_last_sd_switch == 1U) && (current_sd == 2U)) {
+            if (!USB_ScreenIsBusy()) {
+                USB_ScreenClearAckFlag();
+                (void)USB_ScreenSendNext();
+            }
+        }
+
+        catch_last_sd_switch = current_sd;
+        arm_last_sd_switch = current_sd;
+        return;
+    }
+
+    if ((ArmRemoteTaskModeIsArm() != 0U) && (arm_unlocked != 0U)) {
+        Arm_AirModule2Set(0U);
+        if (current_sd == 1U) {
+            Arm_AirModule1Set(0U);
+        } else if (current_sd == 2U) {
+            Arm_AirModule1Set(1U);
+        }
+
+        arm_last_sd_switch = current_sd;
+        catch_last_sd_switch = current_sd;
+        return;
+    }
+
+    Arm_AirModule1Set(0U);
+    Arm_AirModule2Set(0U);
+    arm_last_sd_switch = current_sd;
+    catch_last_sd_switch = current_sd;
+#else
     Arm_AirModule1Set(0U);
 
     if (ArmRemoteTaskModeIsCatch() != 0U) {
@@ -229,6 +269,7 @@ static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
     Arm_AirModule2Set(0U);
     arm_last_sd_switch = current_sd;
     catch_last_sd_switch = current_sd;
+#endif
 }
 
 static void Arm_SetServoTargets(uint16_t servo3_pos, uint16_t servo4_pos)
@@ -255,6 +296,7 @@ void Arm_ActionPreset2(void)
     Arm_SetServoTargets(ARM_ACTION2_SERVO3_POS, ARM_ACTION2_SERVO4_POS);
 }
 
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_CURRENT
 static void Arm_ApplyFormerJ1Sc3J2Part(void)
 {
     Arm_SetServoTargets(765U, 677U);
@@ -290,6 +332,44 @@ static void Arm_ApplyPreset2(uint8_t preset_index)
             break;
     }
 }
+#endif
+
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+static void Arm_SetJ1ServoTargets(uint16_t h1_pos, uint16_t h2_pos)
+{
+    if (motor_h1 != NULL) {
+        motor_h1->ref.position = h1_pos;
+        motor_h1->ref.time = SERVO_MOVE_TIME_MS;
+    }
+    if (motor_h2 != NULL) {
+        motor_h2->ref.position = h2_pos;
+        motor_h2->ref.time = SERVO_MOVE_TIME_MS;
+    }
+}
+
+static void Arm_ApplyJ1OnlyPreset(uint8_t preset_index)
+{
+    switch (preset_index) {
+        case 1U:
+            target_angles.j1 = J1_PRESET_1_DEG;
+            Arm_SetJ1ServoTargets(H1_PRESET_1_POS, H2_PRESET_1_POS);
+            break;
+
+        case 2U:
+            target_angles.j1 = J1_PRESET_2_DEG;
+            Arm_SetJ1ServoTargets(H1_PRESET_2_POS, H2_PRESET_2_POS);
+            break;
+
+        case 3U:
+            target_angles.j1 = J1_PRESET_3_DEG;
+            Arm_SetJ1ServoTargets(H1_PRESET_3_POS, H2_PRESET_3_POS);
+            break;
+
+        default:
+            break;
+    }
+}
+#endif
 
 /**
  * @brief 读取 3 个关节的当前角度
@@ -441,6 +521,32 @@ void Arm_Task(void)
         target_angles.j3 = current_angles.j3;
     }
 
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+    if (arm_six_pos_unlocked != 0U) {
+        switch (six_pos) {
+            case 2U:
+                Arm_ApplyJ1OnlyPreset(1U);
+                break;
+
+            case 3U:
+                Arm_ApplyJ1OnlyPreset(2U);
+                break;
+
+            case 4U:
+                Arm_ApplyJ1OnlyPreset(3U);
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    if (motor_j1 != NULL) {
+        DMMotorSetPosVelRef(motor_j1,
+                            J1_MOTOR_SIGN * target_angles.j1 * DEGREE_2_RAD,
+                            J1_MAX_VEL_RAD_S);
+    }
+#else
     if (arm_six_pos_unlocked != 0U) {
         switch (six_pos) {
             case 2U:
@@ -475,6 +581,7 @@ void Arm_Task(void)
     }
 
     target_angles.j2 = target_j2_deg;
+#endif
     arm_last_six_pos = six_pos;
     arm_debug.target = target_angles;
 

@@ -79,7 +79,8 @@
 #define CHASSIS_STEERING_ALIGN_ENABLE 1U              // 舵轮归零后是否转到目标 ECD: 1=正常闭环, 0=停在归零点
 #define CHASSIS_STEERING_PHOTO_GATE_BLOCKED GPIO_PIN_RESET // 光电门遮挡电平
 #define CHASSIS_IMU_CORRECTION_ENABLE 1U              // IMU 航向修正总开关: 1=启用, 0=关闭
-#define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 1.0f  // 停车对正时角速度死区
+#define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 0.2f  // 停车对正时角速度死区
+#define CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE 0U    // 静止且航向误差很小时是否暂停 IMU 闭环: 1=暂停, 0=全程闭环
 #define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f // 静止航向保持进入死区
 #define CHASSIS_IDLE_YAW_CORRECTION_EXIT_DEADBAND_DEG 2.0f  // 静止航向保持退出死区
 #define CHASSIS_IMU_DT_FALLBACK_S 0.001f              // IMU 更新周期异常时的备用周期
@@ -1248,6 +1249,7 @@ static float UpdateIMUCorrection(float target_vw)
     return offset * CHASSIS_IMU_CORRECTION_SIGN;
 }
 
+#if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
 static float ChassisIMU_GetCorrectionYawError(void)
 {
     float current_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
@@ -1258,6 +1260,7 @@ static float ChassisIMU_GetCorrectionYawError(void)
 
     return ChassisIMU_DiffDeg(chassis_ctrl_cmd.last_yaw, current_yaw);
 }
+#endif
 
 /**
  * @brief 舵轮底盘运动学解算。
@@ -1272,7 +1275,9 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     float chassis_vy = vy;
     float chassis_vw = vw;
     static uint8_t first_run_kinematics = 1;
+#if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
     static uint8_t idle_yaw_correction_hold = 0U;
+#endif
     static uint8_t manual_rotate_active = 0U;
     static uint8_t drive_wait_steering_active = 0U;
     static uint32_t drive_wait_steering_start_tick = 0U;
@@ -1282,7 +1287,9 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     uint8_t stop_align_ready = 0U;
     uint8_t drive_wait_steering_ready = 1U;
     uint8_t drive_wait_steering_needed = 0U;
+#if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
     float idle_yaw_error = 0.0f;
+#endif
 
     if (steering_home_all_done == 0U) {
         chassis_debug.stop_reason = 2U;
@@ -1329,10 +1336,13 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         chassis_ctrl_cmd.last_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
         chassis_ctrl_cmd.target_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
         chassis_ctrl_cmd.offset_w = 0.0f;
+#if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
         idle_yaw_correction_hold = 0U;
+#endif
         ChassisIMU_ClearCorrectionPID();
     }
 
+#if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
     if (manual_idle != 0U) {
         idle_yaw_error = fabsf(ChassisIMU_GetCorrectionYawError());
 
@@ -1355,6 +1365,10 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
         chassis_vw = vw + chassis_ctrl_cmd.offset_w;
     }
+#else
+    chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
+    chassis_vw = vw + chassis_ctrl_cmd.offset_w;
+#endif
 
     chassis_debug.cmd_vw_corrected = chassis_vw;
     chassis_debug.imu_offset_w = chassis_ctrl_cmd.offset_w;
