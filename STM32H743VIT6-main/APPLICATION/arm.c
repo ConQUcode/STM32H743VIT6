@@ -22,24 +22,17 @@
 
 /* ===================== 遥控器任务映射说明 =====================
  *
- * 当前 ARM 任务使用 RadioMaster Boxer / ELRS 语义化字段:
- *   - remote_boxer.sb           : 左侧三档拨杆, 作为 ARM 子任务选择
- *   - remote_boxer.sc           : 右侧三档拨杆, 作为当前子任务下的预设档位选择
- *   - remote_boxer.sa           : 1 关闭小机械臂气泵, 2 开启
- *   - remote_boxer.sd           : 1 关闭大机械臂气泵, 2 开启
+ * SA=1: catch 区域。SD 只触发 USB 屏幕下一张，ARM 气泵关闭。
+ * SA=2: arm 区域。进入时 six_pos 必须先回到 1 才解锁。
  *
- * 左拨杆任务分配:
- *   - 左拨杆 1 / 其他值: 不切换新预设, J1/J2 保持当前目标
- *   - 左拨杆 2: J1 任务
- *       右拨杆 1/2/3 -> Arm_ApplyPreset(), 设置 3/4 号幻尔舵机预设和 J1 预设
- *   - 左拨杆 3: J2 任务
- *       右拨杆 1/2/3 -> Arm_ApplyPreset2(), 设置 1/2 号幻尔舵机预设和 J2 预设
+ * ARM 解锁后:
+ *   - six_pos=1: 空档，保持当前 J2 目标。
+ *   - six_pos=2/3/4: 原 J2 任务 1/2/3 档。
+ *   - six_pos=5: Arm_ActionPreset2() 的 J2/大机械臂部分。
+ *   - six_pos=6: 旧 SB=2, SC=3 中保留的 J2/大机械臂部分。
  *
- * 与 CatchTask 的分工:
- *   - SB=1: CatchTask 工作区间
- *   - SB=2: ARM J1 工作区间
- *   - SB=3: ARM J2 工作区间
- *   SC=1/2/3 在当前工作区间内选择预设, 因此和 catch 不直接冲突。
+ * ARM 模式不再使用 SB/SC 选任务，不在主任务中下发 J1 新目标。
+ * 小机械臂气泵遥控控制暂时移除并默认关闭。
  */
 
 /* ===================== 电机实例 ===================== */
@@ -125,8 +118,10 @@ static float home_wrist_y = 0.0f;         /* home 时 L2 末端 (腕点) Y 坐�
 static Arm_JointAngles_t current_angles;  /* 本周期读到的当前角度 */
 static Arm_JointAngles_t target_angles;   /* 下发给电机的目标角度 */
 static float target_j2_deg = J2_INIT_POS_RAD * RAD_2_DEGREE;
-static uint8_t arm_last_left_switch = 0U;
-static uint8_t arm_last_right_switch = 0U;
+static uint8_t arm_mode_was_active = 0U;
+static uint8_t arm_six_pos_unlocked = 0U;
+static uint8_t arm_last_six_pos = 0U;
+static uint8_t catch_last_sd_switch = 0U;
 static uint8_t arm_last_sd_switch = 0U;
 
 /* ===================== 调试观测 ===================== */
@@ -147,6 +142,10 @@ static volatile struct {
     uint16_t ik_fail_count;      /* IK 失败次数 (含超限) */
     float he_cmd_pos;            /* 当前 HE 发送值 */
     float he_follow_deg;         /* HE 跟随使用的 J1 角度 */
+    uint8_t mode;
+    uint8_t six_pos;
+    uint8_t six_pos_unlocked;
+    uint8_t last_six_pos;
     uint8_t air_pc8_on;
     uint8_t air_pd3_on;
 } arm_debug;
@@ -179,58 +178,57 @@ static void Arm_AirModule2Set(uint8_t enable)
     arm_debug.air_pd3_on = on;
 }
 
-static uint8_t ArmRemoteSwitchValid(uint8_t value)
-{
-    return ((value >= 1U) && (value <= 3U)) ? 1U : 0U;
-}
-
-static uint8_t ArmRemoteLeftSwitch(void)
-{
-    return remote_boxer.sb;
-}
-
-static uint8_t ArmRemoteRightSwitch(void)
-{
-    return remote_boxer.sc;
-}
-
 static uint8_t ArmRemoteSixPos(void)
 {
     return remote_boxer.six_pos;
 }
 
-static float ArmRemoteRightY(void)
+static uint8_t ArmRemoteTaskModeIsCatch(void)
 {
-    return (float)remote_boxer.right_y;
+    return (remote_boxer.sa == 1U) ? 1U : 0U;
 }
 
-static void Arm_ProcessAirKeys(void)
+static uint8_t ArmRemoteTaskModeIsArm(void)
+{
+    return (remote_boxer.sa == 2U) ? 1U : 0U;
+}
+
+static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
 {
     uint8_t current_sd = remote_boxer.sd;
 
-    /* SA 控制小机械臂气泵: 1 关闭, 2 开启 */
-    if (remote_boxer.sa == 1U) {
-        Arm_AirModule1Set(0U);
-    } else if (remote_boxer.sa == 2U) {
-        Arm_AirModule1Set(1U);
-    }
+    Arm_AirModule1Set(0U);
 
-    /* SD 控制大机械臂气泵: 1 关闭, 2 开启 */
-    if (current_sd == 1U) {
+    if (ArmRemoteTaskModeIsCatch() != 0U) {
         Arm_AirModule2Set(0U);
-    } else if (current_sd == 2U) {
-        Arm_AirModule2Set(1U);
-    }
 
-    /* SD 从 1 变到 2 时，触发一次 USB 屏幕切到下一张。 */
-    if ((arm_last_sd_switch == 1U) && (current_sd == 2U)) {
-        if (!USB_ScreenIsBusy()) {
-            USB_ScreenClearAckFlag();
-            (void)USB_ScreenSendNext();
+        if ((catch_last_sd_switch == 1U) && (current_sd == 2U)) {
+            if (!USB_ScreenIsBusy()) {
+                USB_ScreenClearAckFlag();
+                (void)USB_ScreenSendNext();
+            }
         }
+
+        catch_last_sd_switch = current_sd;
+        arm_last_sd_switch = current_sd;
+        return;
     }
 
+    if ((ArmRemoteTaskModeIsArm() != 0U) && (arm_unlocked != 0U)) {
+        if (current_sd == 1U) {
+            Arm_AirModule2Set(0U);
+        } else if (current_sd == 2U) {
+            Arm_AirModule2Set(1U);
+        }
+
+        arm_last_sd_switch = current_sd;
+        catch_last_sd_switch = current_sd;
+        return;
+    }
+
+    Arm_AirModule2Set(0U);
     arm_last_sd_switch = current_sd;
+    catch_last_sd_switch = current_sd;
 }
 
 static void Arm_SetServoTargets(uint16_t servo3_pos, uint16_t servo4_pos)
@@ -242,33 +240,6 @@ static void Arm_SetServoTargets(uint16_t servo3_pos, uint16_t servo4_pos)
     if (motor_j3 != NULL) {
         motor_j3->ref.position = servo4_pos;
         motor_j3->ref.time = SERVO_MOVE_TIME_MS;
-    }
-}
-
-static void Arm_SetServoTargets2(uint16_t h1_pos, uint16_t h2_pos)
-{
-    if (motor_h1 != NULL) {
-        motor_h1->ref.position = h1_pos;
-        motor_h1->ref.time = SERVO_MOVE_TIME_MS;
-    }
-    if (motor_h2 != NULL) {
-        motor_h2->ref.position = h2_pos;
-        motor_h2->ref.time = SERVO_MOVE_TIME_MS;
-    }
-}
-
-void Arm_ActionPreset1(void)
-{
-    target_angles.j1 = ARM_ACTION1_DM3_POS_RAD * RAD_2_DEGREE;
-    if (motor_j1 != NULL) {
-        DMMotorSetPosVelRef(motor_j1,
-                            J1_MOTOR_SIGN * ARM_ACTION1_DM3_POS_RAD,
-                            J1_MAX_VEL_RAD_S);
-    }
-
-    if (motor_h2 != NULL) {
-        motor_h2->ref.position = ARM_ACTION1_SERVO2_POS;
-        motor_h2->ref.time = SERVO_MOVE_TIME_MS;
     }
 }
 
@@ -284,42 +255,19 @@ void Arm_ActionPreset2(void)
     Arm_SetServoTargets(ARM_ACTION2_SERVO3_POS, ARM_ACTION2_SERVO4_POS);
 }
 
-static float Arm_GetPresetJ1Deg(uint8_t right_sw)
+static void Arm_ApplyFormerJ1Sc3J2Part(void)
 {
-    /* 左拨杆=2 时, 右拨杆 1/2/3 对应 J1 三个预设角。 */
-    switch (right_sw) {
-        case 1U: return J1_PRESET_1_DEG;
-        case 2U: return J1_PRESET_2_DEG;
-        case 3U: return J1_PRESET_3_DEG;
-        default: return target_angles.j1;
-    }
+    Arm_SetServoTargets(765U, 677U);
+    target_j2_deg = -3.7f * RAD_2_DEGREE;
 }
 
-static void Arm_ApplyPreset(uint8_t right_sw)
-{
-    /*
-     * 左拨杆=3 的 J1 任务页:
-     *   右拨杆 1/2/3 选择 3/4 号幻尔舵机预设, 并同步设置 J1 预设角。
-     */
-    switch (right_sw) {
-        case 1U: Arm_SetServoTargets2(H1_PRESET_1_POS, H2_PRESET_1_POS);  break;
-        case 2U: Arm_SetServoTargets2(H1_PRESET_2_POS, H2_PRESET_2_POS);  break;
-        case 3U: Arm_SetServoTargets2(H1_PRESET_3_POS, H2_PRESET_3_POS);
-			           Arm_SetServoTargets(765, 677);
-			           target_j2_deg = -3.7* RAD_2_DEGREE;
-			break;//这里是两个机械臂配合吸取，j2长机械臂预设在这，本来不该这样写的，心烦不改了吧
-        default:        Arm_SetServoTargets2(H1_INIT_POS, H2_INIT_POS);  return;
-    }
-    target_angles.j1 = Arm_GetPresetJ1Deg(right_sw);
-}
-
-static void Arm_ApplyPreset2(uint8_t right_sw)
+static void Arm_ApplyPreset2(uint8_t preset_index)
 {
     /*
      * 左拨杆=3 的 J2 任务页:
      *   右拨杆 1/2/3 选择 1/2/3/4 号幻尔舵机预设, 并同步设置 J2 预设角。
      */
-    switch (right_sw) {
+    switch (preset_index) {
         case 1U: 
           
             Arm_SetServoTargets(SERVO3_PRESET_1_POS, SERVO4_PRESET_1_POS);
@@ -452,16 +400,38 @@ void Arm_Init(void)
 
 void Arm_Task(void)
 {
-    uint8_t left_sw = ArmRemoteLeftSwitch();
-    uint8_t right_sw = ArmRemoteRightSwitch();
     uint8_t six_pos = ArmRemoteSixPos();
+    uint8_t arm_mode_active = ArmRemoteTaskModeIsArm();
 
-    /* 处理气路控制 (SA/SD) */
-    Arm_ProcessAirKeys();
+    if (arm_mode_active == 0U) {
+        arm_mode_was_active = 0U;
+        arm_six_pos_unlocked = 0U;
+        arm_last_six_pos = six_pos;
+        arm_debug.mode = remote_boxer.sa;
+        arm_debug.six_pos = six_pos;
+        arm_debug.six_pos_unlocked = 0U;
+        arm_debug.last_six_pos = arm_last_six_pos;
+        Arm_ProcessAirKeys(0U);
+        HEMotorControl();
+        return;
+    }
+
+    if (arm_mode_was_active == 0U) {
+        arm_mode_was_active = 1U;
+        arm_six_pos_unlocked = (six_pos == 1U) ? 1U : 0U;
+    } else if (six_pos == 1U) {
+        arm_six_pos_unlocked = 1U;
+    }
+
+    Arm_ProcessAirKeys(arm_six_pos_unlocked);
 
     Arm_ReadJointAngles(&current_angles);
     arm_debug.current = current_angles;
-    arm_debug.sw = right_sw;
+    arm_debug.sw = six_pos;
+    arm_debug.mode = 2U;
+    arm_debug.six_pos = six_pos;
+    arm_debug.six_pos_unlocked = arm_six_pos_unlocked;
+    arm_debug.last_six_pos = arm_last_six_pos;
 
     if (motor_j1 && motor_j1->feedback_initialized && !j1_zero_inited) {
         j1_zero_offset_deg = 0.0f;
@@ -471,39 +441,41 @@ void Arm_Task(void)
         target_angles.j3 = current_angles.j3;
     }
 
-    if (six_pos == 2U) {
-        Arm_ActionPreset1();
-        Arm_ActionPreset2();
-    } else if (left_sw == 2U) {
-        /*
-         * 左拨杆=2: J1 控制任务
-         *   - 第一次进入该任务, 或右拨杆档位变化时, 按右拨杆 1/2/3 应用 J1 + 3/4 号舵机预设。
-         *   - 右摇杆 Y(remote_boxer.right_y) 作为 J1 微调输入。
-         *   - J2 保持当前 target_j2_deg。
-         */
-        if ((arm_last_left_switch != 2U) || (arm_last_right_switch != right_sw)) Arm_ApplyPreset(right_sw);
-        DMMotorSetPosVelRef(motor_j1, J1_MOTOR_SIGN * target_angles.j1 * DEGREE_2_RAD, J1_MAX_VEL_RAD_S);
-        if (motor_j2) DMMotorSetPosVelRef(motor_j2, J2_MOTOR_SIGN * target_j2_deg * DEGREE_2_RAD, J2_MAX_VEL_RAD_S);
-    } else if (left_sw == 3U) {
-        /*
-         * 左拨杆=3: J2 控制任务
-         *   - 第一次进入该任务, 或右拨杆档位变化时, 按右拨杆 1/2/3 应用 J2 + 1/2 号舵机预设。
-         *   - J1 保持当前 target_angles.j1。
-         */
-        if ((arm_last_left_switch != 3U) || (arm_last_right_switch != right_sw)) Arm_ApplyPreset2(right_sw);
-        DMMotorSetPosVelRef(motor_j2, J2_MOTOR_SIGN * target_j2_deg * DEGREE_2_RAD, J2_MAX_VEL_RAD_S);
-        DMMotorSetPosVelRef(motor_j1, J1_MOTOR_SIGN * target_angles.j1 * DEGREE_2_RAD, J1_MAX_VEL_RAD_S);
-    } else {
-        /*
-         * 左拨杆=1 或遥控器数据不可用:
-         *   不应用新预设, 不响应摇杆微调, 只持续保持当前 J1/J2 目标。
-         */
-        DMMotorSetPosVelRef(motor_j1, J1_MOTOR_SIGN * target_angles.j1 * DEGREE_2_RAD, J1_MAX_VEL_RAD_S);
-        if (motor_j2) DMMotorSetPosVelRef(motor_j2, J2_MOTOR_SIGN * target_j2_deg * DEGREE_2_RAD, J2_MAX_VEL_RAD_S);
+    if (arm_six_pos_unlocked != 0U) {
+        switch (six_pos) {
+            case 2U:
+                Arm_ApplyPreset2(1U);
+                break;
+
+            case 3U:
+                Arm_ApplyPreset2(2U);
+                break;
+
+            case 4U:
+                Arm_ApplyPreset2(3U);
+                break;
+
+            case 5U:
+                Arm_ActionPreset2();
+                break;
+
+            case 6U:
+                Arm_ApplyFormerJ1Sc3J2Part();
+                break;
+
+            default:
+                break;
+        }
     }
 
-    arm_last_left_switch = left_sw;
-    arm_last_right_switch = right_sw;
+    if (motor_j2 != NULL) {
+        DMMotorSetPosVelRef(motor_j2,
+                            J2_MOTOR_SIGN * target_j2_deg * DEGREE_2_RAD,
+                            J2_MAX_VEL_RAD_S);
+    }
+
+    target_angles.j2 = target_j2_deg;
+    arm_last_six_pos = six_pos;
     arm_debug.target = target_angles;
 
     HEMotorControl();

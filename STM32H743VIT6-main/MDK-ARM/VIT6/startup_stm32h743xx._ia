@@ -1,0 +1,10 @@
+--cpu Cortex-M7.fp.dp -g -I ../Drivers/CMSIS/Include
+-I.\RTE\_VIT6
+-IC:\Users\11737\AppData\Local\Arm\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include
+--pd "__UVISION_VERSION SETA 536"
+--pd "_RTE_ SETA 1"
+--pd "STM32H743xx SETA 1"
+--pd "_RTE_ SETA 1"
+--list startup_stm32h743xx.lst
+--xref -o vit6\startup_stm32h743xx.o
+--depend vit6\startup_stm32h743xx.d "startup_stm32h743xx.s"

@@ -123,10 +123,10 @@ typedef enum {
 #define CHASSIS_REMOTE_LINEAR_DEADBAND 25.0f          // 前后/平移摇杆原始值死区
 #define CHASSIS_REMOTE_ANGULAR_DEADBAND 50.0f         // 旋转摇杆原始值死区
 #define CHASSIS_REMOTE_TRANSLATION_DRIVE_START 80.0f  // 平移摇杆超过该原始值后才给行走轮输出
-#define CHASSIS_REMOTE_YAW_PRESET_RECENTER 4U         // 六档开关4档: 以当前IMU航向作为直行基准角
-#define CHASSIS_REMOTE_YAW_PRESET_LEFT_90 5U          // 六档开关5档: 以当前航向为基准左转90度
-#define CHASSIS_REMOTE_YAW_PRESET_RIGHT_90 6U         // 六档开关6档: 以当前航向为基准右转90度
-#define CHASSIS_REMOTE_YAW_STEP_DEG 90.0f             // 六档开关5/6档单次航向偏移角度
+#define CHASSIS_REMOTE_SC_CENTER 2U                   // SC default center; only 2->1/3 triggers yaw preset.
+#define CHASSIS_REMOTE_SC_LEFT_90 1U                  // SC 2->1: current yaw + 90 deg.
+#define CHASSIS_REMOTE_SC_RIGHT_90 3U                 // SC 2->3: current yaw - 90 deg.
+#define CHASSIS_REMOTE_YAW_STEP_DEG 90.0f             // SC yaw preset step.
 #define CHASSIS_IDLE_DRIVE_HOLD_ENABLE 1U             // 静止时行走轮速度环 0 保持
 #define CHASSIS_STOP_STEERING_RETURN_TO_FRONT_ENABLE 0U // 静止时舵轮是否回前后朝向: 1=回正, 0=保持当前角度
 #define CHASSIS_DRIVE_WAIT_STEERING_ENABLE 0U         // 前进/平移时等待舵向到位后再启动行走轮
@@ -441,15 +441,19 @@ void ChassisIMU_ResetYaw(float yaw_deg)
     chassis_ctrl_cmd.offset_w = 0.0f;
 }
 
-static uint8_t ChassisRemoteYawPresetTask(uint8_t six_pos)
+static uint8_t ChassisRemoteYawPresetTask(uint8_t sc)
 {
-    static uint8_t last_six_pos = 0U;
+    static uint8_t last_sc = 0U;
+    uint8_t previous_sc;
     float target_yaw;
     uint8_t triggered = 0U;
 
-    if (six_pos == last_six_pos) {
+    if (sc == last_sc) {
         return 0U;
     }
+
+    previous_sc = last_sc;
+    last_sc = sc;
 
     if ((chassis_ctrl_cmd.imu_enable == 0U) ||
         (chassis_ctrl_cmd.Chassis_IMU_data == NULL) ||
@@ -457,21 +461,18 @@ static uint8_t ChassisRemoteYawPresetTask(uint8_t six_pos)
         return 0U;
     }
 
-    last_six_pos = six_pos;
+    if (previous_sc != CHASSIS_REMOTE_SC_CENTER) {
+        return 0U;
+    }
 
-    switch (six_pos) {
-        case CHASSIS_REMOTE_YAW_PRESET_RECENTER:
-            target_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
-            triggered = 1U;
-            break;
-
-        case CHASSIS_REMOTE_YAW_PRESET_LEFT_90:
+    switch (sc) {
+        case CHASSIS_REMOTE_SC_LEFT_90:
             target_yaw = ChassisIMU_NormalizeDeg(chassis_ctrl_cmd.Chassis_IMU_data->Yaw +
                                                  CHASSIS_REMOTE_YAW_STEP_DEG);
             triggered = 1U;
             break;
 
-        case CHASSIS_REMOTE_YAW_PRESET_RIGHT_90:
+        case CHASSIS_REMOTE_SC_RIGHT_90:
             target_yaw = ChassisIMU_NormalizeDeg(chassis_ctrl_cmd.Chassis_IMU_data->Yaw -
                                                  CHASSIS_REMOTE_YAW_STEP_DEG);
             triggered = 1U;
@@ -1616,7 +1617,7 @@ void ChassisTask(void)
         chassis_debug.remote_right_x = (float)remote_boxer.right_x;
         chassis_debug.remote_left_x = (float)remote_boxer.left_x;
 
-        if (ChassisRemoteYawPresetTask(remote_boxer.six_pos) != 0U) {
+        if (ChassisRemoteYawPresetTask(remote_boxer.sc) != 0U) {
             vw = 0.0f;
         }
     }

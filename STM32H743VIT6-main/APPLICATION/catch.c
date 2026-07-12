@@ -33,6 +33,9 @@ static float level_pos = -0.2642f;
 /* 达妙位置速度模式下的目标速度。 */
 static float dm4310_target_vel = 1.5f;
 
+#define DM_LEVEL_ADJUST_STEP_RAD   0.0087266463f
+#define DM_LEVEL_ADJUST_LIMIT_RAD  0.0436332313f
+
 /* 判断达妙已经到达 level_pos 的允许误差，单位 rad。 */
 #define DM_LEVEL_POS_TOL_RAD      0.15f
 /* 3508 默认角度目标；不在状态机流程内时保持在该位置。 */
@@ -99,6 +102,13 @@ int IR_sensor_level;
 float control;
 volatile uint8_t catch_remote_switch_left;
 volatile uint8_t catch_remote_switch_right;
+volatile uint8_t catch_remote_mode;
+volatile uint8_t catch_remote_sb;
+volatile uint8_t catch_remote_six_pos;
+volatile uint8_t catch_remote_se;
+volatile uint8_t catch_remote_sf;
+volatile float catch_dm4310_level_adjust_deg;
+volatile float catch_dm4310_level_target_pos;
 
 /* 初始化飞特舵机总线和 ID=3 的夹爪舵机。 */
 static void FeiteMotorsInit(void)
@@ -270,6 +280,70 @@ static uint8_t CatchRemoteSwitchValid(uint8_t value)
     return ((value >= 1U) && (value <= 3U)) ? 1U : 0U;
 }
 
+static uint8_t CatchRemoteTaskModeIsCatch(void)
+{
+    return (remote_boxer.sa == 1U) ? 1U : 0U;
+}
+
+static uint8_t CatchRemoteSixPos(void)
+{
+    uint8_t six_pos = remote_boxer.six_pos;
+
+    return ((six_pos >= 1U) && (six_pos <= 6U)) ? six_pos : 1U;
+}
+
+static uint8_t CatchRemoteTwoPosSwitch(uint8_t value)
+{
+    return (value == 2U) ? 2U : 1U;
+}
+
+static float CatchLevelAdjustTarget(uint8_t active)
+{
+    static uint8_t was_active = 0U;
+    static uint8_t last_se = 1U;
+    static uint8_t last_sf = 1U;
+    static float adjust_rad = 0.0f;
+    uint8_t current_se = CatchRemoteTwoPosSwitch(remote_boxer.se);
+    uint8_t current_sf = CatchRemoteTwoPosSwitch(remote_boxer.sf);
+
+    catch_remote_se = current_se;
+    catch_remote_sf = current_sf;
+
+    if (active == 0U) {
+        was_active = 0U;
+        adjust_rad = 0.0f;
+        last_se = current_se;
+        last_sf = current_sf;
+    } else if (was_active == 0U) {
+        was_active = 1U;
+        adjust_rad = 0.0f;
+        last_se = current_se;
+        last_sf = current_sf;
+    } else {
+        if ((last_se == 1U) && (current_se == 2U)) {
+            adjust_rad += DM_LEVEL_ADJUST_STEP_RAD;
+        }
+
+        if ((last_sf == 1U) && (current_sf == 2U)) {
+            adjust_rad -= DM_LEVEL_ADJUST_STEP_RAD;
+        }
+
+        if (adjust_rad > DM_LEVEL_ADJUST_LIMIT_RAD) {
+            adjust_rad = DM_LEVEL_ADJUST_LIMIT_RAD;
+        } else if (adjust_rad < -DM_LEVEL_ADJUST_LIMIT_RAD) {
+            adjust_rad = -DM_LEVEL_ADJUST_LIMIT_RAD;
+        }
+
+        last_se = current_se;
+        last_sf = current_sf;
+    }
+
+    catch_dm4310_level_adjust_deg = adjust_rad / DM_LEVEL_ADJUST_STEP_RAD * 0.5f;
+    catch_dm4310_level_target_pos = level_pos + adjust_rad;
+
+    return catch_dm4310_level_target_pos;
+}
+
 static uint8_t CatchRemoteLeftSwitch(void)
 {
     if (CatchRemoteSwitchValid(remote_boxer.sb) != 0U) {
@@ -278,19 +352,6 @@ static uint8_t CatchRemoteLeftSwitch(void)
 
     if ((remote_data != NULL) && (CatchRemoteSwitchValid(remote_data->switch_left) != 0U)) {
         return remote_data->switch_left;
-    }
-
-    return 0U;
-}
-
-static uint8_t CatchRemoteRightSwitch(void)
-{
-    if (CatchRemoteSwitchValid(remote_boxer.sc) != 0U) {
-        return remote_boxer.sc;
-    }
-
-    if ((remote_data != NULL) && (CatchRemoteSwitchValid(remote_data->switch_right) != 0U)) {
-        return remote_data->switch_right;
     }
 
     return 0U;
@@ -372,17 +433,24 @@ void CatchTask(void)
     }
 
     if (remote_data != NULL) {
+        uint8_t catch_mode_active = CatchRemoteTaskModeIsCatch();
         uint8_t catch_switch_left = CatchRemoteLeftSwitch();
-        uint8_t catch_switch_right = CatchRemoteRightSwitch();
+        uint8_t catch_six_pos = CatchRemoteSixPos();
+        uint8_t catch_level_adjust_active =
+            ((catch_mode_active != 0U) && (catch_six_pos == 3U)) ? 1U : 0U;
+        float catch_level_target_pos = CatchLevelAdjustTarget(catch_level_adjust_active);
 
+        catch_remote_mode = catch_mode_active;
+        catch_remote_sb = catch_switch_left;
+        catch_remote_six_pos = catch_six_pos;
         catch_remote_switch_left = catch_switch_left;
-        catch_remote_switch_right = catch_switch_right;
+        catch_remote_switch_right = catch_six_pos;
 
-        if ((catch_switch_left == 1U) &&
-            ((catch_switch_right == 1U) || (catch_switch_right == 2U) || (catch_switch_right == 3U))) {
+        if ((catch_mode_active != 0U) &&
+            ((catch_six_pos == 2U) || (catch_six_pos == 3U) || (catch_six_pos == 4U))) {
 
             /* 左1右1: 飞特夹爪闭合抓取，完成后降低到保持力矩并用 3508 上抬。 */
-            if (catch_switch_right == 1U) {
+            if (catch_six_pos == 2U) {
                 FeiteCatch();
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
@@ -446,8 +514,7 @@ void CatchTask(void)
              * 3. 延时 LIFT_SECOND_CURRENT_DELAY_MS 后开始检测 3508 电流，超过阈值后保持当前角度。
              * 4. 飞特张开/重新闭合完成后，3508 继续保持堵转检测时记录的角度。
              */
-            if ((catch_switch_left == 1U) &&
-                (catch_switch_right == 2U)) {
+            if (catch_six_pos == 3U) {
                 release_action_started = 0U;
                 release_wait_start_time = 0U;
 
@@ -480,13 +547,13 @@ void CatchTask(void)
 
                 /* 达妙电机到达 level_pos 后，进入状态5，开始到位后的延时等待。 */
                 if ((level_action_started != 4U) && (dm4310_motor != NULL)) {
-                    DMMotorSetPosVelRef(dm4310_motor, level_pos, dm4310_target_vel);
+                    DMMotorSetPosVelRef(dm4310_motor, catch_level_target_pos, dm4310_target_vel);
                     if (dm4310_motor->measure.state != 1U) {
                         DMMotorEnable(dm4310_motor);
                     }
 
                     if ((level_action_started == 1U) &&
-                        (fabsf(dm4310_motor->measure.position_rad - level_pos) <= DM_LEVEL_POS_TOL_RAD)) {
+                        (fabsf(dm4310_motor->measure.position_rad - catch_level_target_pos) <= DM_LEVEL_POS_TOL_RAD)) {
                         level_action_started = 5U;
                         lift_level_arrive_time = HAL_GetTick();
                     }
@@ -573,8 +640,7 @@ void CatchTask(void)
                     }
                 }
 
-            } else if ((catch_switch_left == 1U) &&
-                       (catch_switch_right == 3U)) {
+            } else if (catch_six_pos == 4U) {
                 /* 左1右3: 释放流程，先上升，再下降，PC2 拉低后飞特大张开。 */
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
