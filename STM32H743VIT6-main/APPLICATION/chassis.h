@@ -68,9 +68,16 @@ typedef struct
     uint8_t imu_mode;                // IMU 修正模式
     float imu_yaw;                   // 当前 IMU 航向角
     float imu_offset_w;              // 当前 IMU 航向修正量
+    uint8_t manual_rotate_active;    // 手动旋转状态
+    uint8_t rotate_release_settle_active; // 旋转释放后航向重捕获状态
+    uint8_t fine_control_mode;       // 底盘低速精调模式
     float remote_right_y;            // 右摇杆Y原始中心化值
     float remote_right_x;            // 右摇杆X原始中心化值
     float remote_left_x;             // 左摇杆X原始中心化值
+    uint8_t translation_dir_change_active; // 平移方向突变限速状态
+    float translation_dir_deg;       // 当前平移方向角
+    float translation_dir_delta_deg; // 本次平移方向变化量
+    float translation_dir_change_scale; // 平移方向突变限速系数
     float wheel_speed_lf;            // 左前行走轮目标速度
     float wheel_speed_rf;            // 右前行走轮目标速度
     float wheel_speed_lb;            // 左后行走轮目标速度

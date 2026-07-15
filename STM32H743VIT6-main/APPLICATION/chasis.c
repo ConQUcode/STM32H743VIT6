@@ -12,6 +12,7 @@
 #include "attitude_ekf.h"
 #include "bsp_dwt.h"
 #include "remote.h"
+#include "remote_logic_profile.h"
 #include "robot_def.h"
 #include <math.h>
 
@@ -27,16 +28,16 @@
 #define CHASSIS_STEERING_ANGLE_KI_LF 1.5f             // 左前舵向 ID7 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_LF 0.2f             // 左前舵向 ID7 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_LF 20000.0f // 左前舵向 ID7 角度环积分限幅
-#define CHASSIS_STEERING_ANGLE_KP_RF 5.8f             // 右前舵向 ID8 角度环 Kp
-#define CHASSIS_STEERING_ANGLE_KI_RF 1.8f             // 右前舵向 ID8 角度环 Ki
+#define CHASSIS_STEERING_ANGLE_KP_RF 6.2f             // 右前舵向 ID8 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KI_RF 2.2f             // 右前舵向 ID8 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_RF 0.1f             // 右前舵向 ID8 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_RF 20000.0f // 右前舵向 ID8 角度环积分限幅
 #define CHASSIS_STEERING_ANGLE_KP_LB 5.5f             // 左后舵向 ID5 角度环 Kp
 #define CHASSIS_STEERING_ANGLE_KI_LB 0.05f             // 左后舵向 ID5 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_LB 0.15f             // 左后舵向 ID5 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_LB 20000.0f // 左后舵向 ID5 角度环积分限幅
-#define CHASSIS_STEERING_ANGLE_KP_RB 6.9f             // 右后舵向 ID6 角度环 Kp
-#define CHASSIS_STEERING_ANGLE_KI_RB 2.0f             // 右后舵向 ID6 角度环 Ki
+#define CHASSIS_STEERING_ANGLE_KP_RB 6.5f             // 右后舵向 ID6 角度环 Kp
+#define CHASSIS_STEERING_ANGLE_KI_RB 2.5f             // 右后舵向 ID6 角度环 Ki
 #define CHASSIS_STEERING_ANGLE_KD_RB 0.1f             // 右后舵向 ID6 角度环 Kd
 #define CHASSIS_STEERING_ANGLE_INTEGRAL_LIMIT_RB 20000.0f // 右后舵向 ID6 角度环积分限幅
 #define CHASSIS_STEERING_ANGLE_COEF_A 5.0f            // 舵向角度环变积分参数 A
@@ -78,7 +79,11 @@
 #define CHASSIS_STEERING_HOME_TIMEOUT_MS 15000U       // 单个舵轮归零超时时间
 #define CHASSIS_STEERING_ALIGN_ENABLE 1U              // 舵轮归零后是否转到目标 ECD: 1=正常闭环, 0=停在归零点
 #define CHASSIS_STEERING_PHOTO_GATE_BLOCKED GPIO_PIN_RESET // 光电门遮挡电平
-#define CHASSIS_IMU_CORRECTION_ENABLE 1U              // IMU 航向修正总开关: 1=启用, 0=关闭
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+#define CHASSIS_IMU_CORRECTION_ENABLE 0U              // ALT 遥控逻辑关闭 IMU 航向修正
+#else
+#define CHASSIS_IMU_CORRECTION_ENABLE 1U              // CURRENT 遥控逻辑启用 IMU 航向修正
+#endif
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 0.2f  // 停车对正时角速度死区
 #define CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE 0U    // 静止且航向误差很小时是否暂停 IMU 闭环: 1=暂停, 0=全程闭环
 #define CHASSIS_IDLE_YAW_CORRECTION_ENTER_DEADBAND_DEG 1.0f // 静止航向保持进入死区
@@ -123,7 +128,26 @@ typedef enum {
 #define CHASSIS_REMOTE_VW_SIGN (1.0f)                 // 旋转方向修正: 左摇杆X控制角速度
 #define CHASSIS_REMOTE_LINEAR_DEADBAND 25.0f          // 前后/平移摇杆原始值死区
 #define CHASSIS_REMOTE_ANGULAR_DEADBAND 50.0f         // 旋转摇杆原始值死区
+#define CHASSIS_FINE_CONTROL_ENABLE 0U                // SB 精调模式暂时禁用: SB 现在用于 catch/arm 区域切换
+#define CHASSIS_FINE_CONTROL_SB_POS 2U                // SB 拨到该档位时启用底盘精调模式
+#define CHASSIS_FINE_LINEAR_DEADBAND 6.0f             // 精调模式前后/平移摇杆原始值死区
+#define CHASSIS_FINE_ANGULAR_DEADBAND 10.0f           // 精调模式旋转摇杆原始值死区
+#define CHASSIS_FINE_LINEAR_SCALE 0.25f               // 精调模式线速度比例
+#define CHASSIS_FINE_ANGULAR_SCALE 0.25f              // 精调模式角速度比例
+#define CHASSIS_FINE_TRANSLATION_DRIVE_START 10.0f    // 精调模式平移摇杆启动行走轮输出阈值
+#define CHASSIS_ROTATE_RELEASE_SETTLE_ENABLE 1U       // 快速旋转松手后短暂跟随当前航向,避免 IMU 立刻反拉
+#define CHASSIS_ROTATE_RELEASE_SETTLE_MS 180U         // 旋转释放后的航向重捕获时间
+#define CHASSIS_MANUAL_ROTATE_ENTER_VW 100.0f         // 进入手动旋转状态的角速度阈值
+#define CHASSIS_MANUAL_ROTATE_EXIT_VW 60.0f           // 退出手动旋转状态的角速度阈值
 #define CHASSIS_REMOTE_TRANSLATION_DRIVE_START 80.0f  // 平移摇杆超过该原始值后才给行走轮输出
+#if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+#define CHASSIS_TRANSLATION_DIR_CHANGE_ENABLE 0U      // ALT 遥控逻辑关闭平移方向突变限速
+#else
+#define CHASSIS_TRANSLATION_DIR_CHANGE_ENABLE 1U      // CURRENT 遥控逻辑启用平移方向突变限速
+#endif
+#define CHASSIS_TRANSLATION_DIR_CHANGE_TRIGGER_DEG 50.0f // 触发平移方向突变限速的方向变化角
+#define CHASSIS_TRANSLATION_DIR_CHANGE_TIME_MS 160U   // 平移方向突变限速恢复时间
+#define CHASSIS_TRANSLATION_DIR_CHANGE_MIN_SCALE 0.20f // 平移方向突变瞬间的最小行走轮输出比例
 #define CHASSIS_REMOTE_SC_CENTER 2U                   // SC default center; only 2->1/3 triggers yaw preset.
 #define CHASSIS_REMOTE_SC_LEFT_90 1U                  // SC 2->1: current yaw + 90 deg.
 #define CHASSIS_REMOTE_SC_RIGHT_90 3U                 // SC 2->3: current yaw - 90 deg.
@@ -982,6 +1006,66 @@ static uint8_t ChassisRemoteIsOnline(void)
     return 1U;
 }
 
+#if CHASSIS_TRANSLATION_DIR_CHANGE_ENABLE
+static float ChassisTranslationDirectionChangeScale(float vx,
+                                                    float vy,
+                                                    float raw_translation_norm,
+                                                    float translation_drive_start)
+{
+    static uint8_t last_translation_active = 0U;
+    static float last_translation_dir_deg = 0.0f;
+    static uint8_t dir_change_active = 0U;
+    static uint32_t dir_change_start_tick = 0U;
+    uint8_t translation_active =
+        (raw_translation_norm > translation_drive_start) ? 1U : 0U;
+    float current_dir_deg = 0.0f;
+    float dir_delta_deg = 0.0f;
+    float scale = 1.0f;
+
+    if (translation_active == 0U) {
+        last_translation_active = 0U;
+        dir_change_active = 0U;
+        chassis_debug.translation_dir_change_active = 0U;
+        chassis_debug.translation_dir_deg = 0.0f;
+        chassis_debug.translation_dir_delta_deg = 0.0f;
+        chassis_debug.translation_dir_change_scale = 1.0f;
+        return 1.0f;
+    }
+
+    current_dir_deg = atan2f(vy, vx) * RAD_2_DEGREE;
+    chassis_debug.translation_dir_deg = current_dir_deg;
+
+    if (last_translation_active != 0U) {
+        dir_delta_deg = fabsf(ChassisIMU_DiffDeg(current_dir_deg, last_translation_dir_deg));
+        if (dir_delta_deg > CHASSIS_TRANSLATION_DIR_CHANGE_TRIGGER_DEG) {
+            dir_change_active = 1U;
+            dir_change_start_tick = HAL_GetTick();
+        }
+    }
+
+    last_translation_dir_deg = current_dir_deg;
+    last_translation_active = 1U;
+    chassis_debug.translation_dir_delta_deg = dir_delta_deg;
+
+    if (dir_change_active != 0U) {
+        uint32_t elapsed_ms = HAL_GetTick() - dir_change_start_tick;
+
+        if (elapsed_ms >= CHASSIS_TRANSLATION_DIR_CHANGE_TIME_MS) {
+            dir_change_active = 0U;
+        } else {
+            float ratio = (float)elapsed_ms / (float)CHASSIS_TRANSLATION_DIR_CHANGE_TIME_MS;
+            scale = CHASSIS_TRANSLATION_DIR_CHANGE_MIN_SCALE +
+                    (1.0f - CHASSIS_TRANSLATION_DIR_CHANGE_MIN_SCALE) * ratio;
+        }
+    }
+
+    chassis_debug.translation_dir_change_active = dir_change_active;
+    chassis_debug.translation_dir_change_scale = scale;
+
+    return scale;
+}
+#endif
+
 /**
  * @brief 在注册舵向电机前写入该舵轮独立的角度环、速度环参数和公共电流环参数。
  */
@@ -1051,15 +1135,15 @@ void ChassisInit()
                 .Kd            = 0.001,   // 0
                 .IntegralLimit = 3000,//5000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut        = 20000,
+                .MaxOut        = 25000,
             },
             .current_PID = {
-                .Kp            = 1, // 1
+                .Kp            = 1.2, // 1
                 .Ki            = 0.01,   // 0
                 .Kd            = 0,
                 .IntegralLimit = 3000,//3000
                 .Improve       = PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement,
-                .MaxOut        = 20000,
+                .MaxOut        = 25000,
             },
         },
         .controller_setting_init_config = {
@@ -1155,14 +1239,14 @@ void ChassisInit()
 
             PID_Init_Config_s chassis_follow_pid_conf = {
         .Kp                = 800, // 6
-        .Ki                = 0.1f,
+        .Ki                = 0.5f,
         .Kd                = 17, // 0.5
         .DeadBand          = 0.5,
         .CoefA             = 0.2,
         .CoefB             = 0.3,
         .Improve           = PID_Trapezoid_Intergral | PID_DerivativeFilter | PID_DerivativeFilter | PID_Derivative_On_Measurement | PID_Integral_Limit | PID_Derivative_On_Measurement | PID_ErrorHandle,
         .IntegralLimit     = 5000, // 200
-        .MaxOut            = 20000,
+        .MaxOut            = 25000,
         .Derivative_LPF_RC = 0.01, // 0.01
     };
 
@@ -1279,6 +1363,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     static uint8_t idle_yaw_correction_hold = 0U;
 #endif
     static uint8_t manual_rotate_active = 0U;
+    static uint8_t rotate_release_settle_active = 0U;
+    static uint32_t rotate_release_settle_start_tick = 0U;
     static uint8_t drive_wait_steering_active = 0U;
     static uint32_t drive_wait_steering_start_tick = 0U;
     float offset_lf = 0.0f, offset_rf = 0.0f, offset_lb = 0.0f, offset_rb = 0.0f;
@@ -1287,6 +1373,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     uint8_t stop_align_ready = 0U;
     uint8_t drive_wait_steering_ready = 1U;
     uint8_t drive_wait_steering_needed = 0U;
+    uint8_t rotate_imu_hold_active = 0U;
+    float current_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
 #if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
     float idle_yaw_error = 0.0f;
 #endif
@@ -1295,6 +1383,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         chassis_debug.stop_reason = 2U;
         chassis_debug.cmd_vw_corrected = 0.0f;
         chassis_debug.imu_offset_w = 0.0f;
+        chassis_debug.manual_rotate_active = 0U;
+        chassis_debug.rotate_release_settle_active = 0U;
         ChassisDebugUpdateHomeState();
         ChassisStopDriveMotors();
         return;
@@ -1304,6 +1394,8 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
     chassis_debug.stop_reason = 2U;
     chassis_debug.cmd_vw_corrected = 0.0f;
     chassis_debug.imu_offset_w = 0.0f;
+    chassis_debug.manual_rotate_active = 0U;
+    chassis_debug.rotate_release_settle_active = 0U;
     ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LF]);
     ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_RF]);
     ChassisSteeringStopMotor(&steering_home[CHASSIS_STEERING_LB]);
@@ -1324,23 +1416,46 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
 #endif
 
     if (first_run_kinematics) {
-        chassis_ctrl_cmd.last_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
-        chassis_ctrl_cmd.target_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
+        chassis_ctrl_cmd.last_yaw = current_yaw;
+        chassis_ctrl_cmd.target_yaw = current_yaw;
         first_run_kinematics = 0;
     }
 
-    if (fabsf(vw) >= 100.0f) {
+    if (fabsf(vw) >= CHASSIS_MANUAL_ROTATE_ENTER_VW) {
         manual_rotate_active = 1U;
-    } else if (manual_rotate_active != 0U) {
+        rotate_release_settle_active = 0U;
+    } else if ((manual_rotate_active != 0U) &&
+               (fabsf(vw) <= CHASSIS_MANUAL_ROTATE_EXIT_VW)) {
         manual_rotate_active = 0U;
-        chassis_ctrl_cmd.last_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
-        chassis_ctrl_cmd.target_yaw = chassis_ctrl_cmd.Chassis_IMU_data->Yaw;
+        rotate_release_settle_active = CHASSIS_ROTATE_RELEASE_SETTLE_ENABLE;
+        rotate_release_settle_start_tick = HAL_GetTick();
+    }
+
+    if (rotate_release_settle_active != 0U) {
+        if ((HAL_GetTick() - rotate_release_settle_start_tick) >=
+            CHASSIS_ROTATE_RELEASE_SETTLE_MS) {
+            rotate_release_settle_active = 0U;
+            chassis_ctrl_cmd.last_yaw = current_yaw;
+            chassis_ctrl_cmd.target_yaw = current_yaw;
+            ChassisIMU_ClearCorrectionPID();
+        }
+    }
+
+    rotate_imu_hold_active =
+        ((manual_rotate_active != 0U) || (rotate_release_settle_active != 0U)) ? 1U : 0U;
+
+    if (rotate_imu_hold_active != 0U) {
+        chassis_ctrl_cmd.last_yaw = current_yaw;
+        chassis_ctrl_cmd.target_yaw = current_yaw;
         chassis_ctrl_cmd.offset_w = 0.0f;
 #if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
         idle_yaw_correction_hold = 0U;
 #endif
         ChassisIMU_ClearCorrectionPID();
     }
+
+    chassis_debug.manual_rotate_active = manual_rotate_active;
+    chassis_debug.rotate_release_settle_active = rotate_release_settle_active;
 
 #if CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE
     if (manual_idle != 0U) {
@@ -1358,7 +1473,10 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         idle_yaw_correction_hold = 0U;
     }
 
-    if (idle_yaw_correction_hold != 0U) {
+    if (rotate_imu_hold_active != 0U) {
+        chassis_ctrl_cmd.offset_w = 0.0f;
+        chassis_vw = vw;
+    } else if (idle_yaw_correction_hold != 0U) {
         chassis_ctrl_cmd.offset_w = 0.0f;
         chassis_vw = 0.0f;
     } else {
@@ -1366,8 +1484,13 @@ void SteeringWheelKinematics(float vx, float vy, float vw)
         chassis_vw = vw + chassis_ctrl_cmd.offset_w;
     }
 #else
-    chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
-    chassis_vw = vw + chassis_ctrl_cmd.offset_w;
+    if (rotate_imu_hold_active != 0U) {
+        chassis_ctrl_cmd.offset_w = 0.0f;
+        chassis_vw = vw;
+    } else {
+        chassis_ctrl_cmd.offset_w = UpdateIMUCorrection(vw);
+        chassis_vw = vw + chassis_ctrl_cmd.offset_w;
+    }
 #endif
 
     chassis_debug.cmd_vw_corrected = chassis_vw;
@@ -1562,6 +1685,12 @@ void ChassisTask(void)
     float vx = 0.0f, vy = 0.0f, vw = 0.0f;
     float raw_vx = 0.0f, raw_vy = 0.0f, raw_vw = 0.0f;
     float raw_translation_norm = 0.0f;
+    float linear_deadband = CHASSIS_REMOTE_LINEAR_DEADBAND;
+    float angular_deadband = CHASSIS_REMOTE_ANGULAR_DEADBAND;
+    float linear_scale = 1.0f;
+    float angular_scale = 1.0f;
+    float translation_drive_start = CHASSIS_REMOTE_TRANSLATION_DRIVE_START;
+    uint8_t fine_control_mode = 0U;
     static uint32_t imu_update_cnt = 0U;
     float imu_dt_s = DWT_GetDeltaT(&imu_update_cnt);
     uint8_t remote_online;
@@ -1591,6 +1720,13 @@ void ChassisTask(void)
         chassis_debug.cmd_vw = 0.0f;
         chassis_debug.cmd_vw_corrected = 0.0f;
         chassis_debug.imu_offset_w = 0.0f;
+        chassis_debug.manual_rotate_active = 0U;
+        chassis_debug.rotate_release_settle_active = 0U;
+        chassis_debug.fine_control_mode = 0U;
+        chassis_debug.translation_dir_change_active = 0U;
+        chassis_debug.translation_dir_deg = 0.0f;
+        chassis_debug.translation_dir_delta_deg = 0.0f;
+        chassis_debug.translation_dir_change_scale = 1.0f;
         chassis_ctrl_cmd.offset_w = 0.0f;
         ChassisIMU_ClearCorrectionPID();
         ChassisStopDriveMotors();
@@ -1605,14 +1741,25 @@ void ChassisTask(void)
         raw_vy = (float)remote_boxer.right_x;
         raw_vw = (float)remote_boxer.left_x;
 
-        if (fabsf(raw_vx) < CHASSIS_REMOTE_LINEAR_DEADBAND) raw_vx = 0.0f;
-        if (fabsf(raw_vy) < CHASSIS_REMOTE_LINEAR_DEADBAND) raw_vy = 0.0f;
-        if (fabsf(raw_vw) < CHASSIS_REMOTE_ANGULAR_DEADBAND) raw_vw = 0.0f;
+#if CHASSIS_FINE_CONTROL_ENABLE
+        fine_control_mode = (remote_boxer.sb == CHASSIS_FINE_CONTROL_SB_POS) ? 1U : 0U;
+#endif
+        if (fine_control_mode != 0U) {
+            linear_deadband = CHASSIS_FINE_LINEAR_DEADBAND;
+            angular_deadband = CHASSIS_FINE_ANGULAR_DEADBAND;
+            linear_scale = CHASSIS_FINE_LINEAR_SCALE;
+            angular_scale = CHASSIS_FINE_ANGULAR_SCALE;
+            translation_drive_start = CHASSIS_FINE_TRANSLATION_DRIVE_START;
+        }
+
+        if (fabsf(raw_vx) < linear_deadband) raw_vx = 0.0f;
+        if (fabsf(raw_vy) < linear_deadband) raw_vy = 0.0f;
+        if (fabsf(raw_vw) < angular_deadband) raw_vw = 0.0f;
 
         raw_translation_norm = sqrtf(raw_vx * raw_vx + raw_vy * raw_vy);
-        if (raw_translation_norm > CHASSIS_REMOTE_TRANSLATION_DRIVE_START) {
+        if (raw_translation_norm > translation_drive_start) {
             chassis_translation_drive_scale =
-                (raw_translation_norm - CHASSIS_REMOTE_TRANSLATION_DRIVE_START) /
+                (raw_translation_norm - translation_drive_start) /
                 raw_translation_norm;
         } else if (raw_vw != 0.0f) {
             chassis_translation_drive_scale = 1.0f;
@@ -1621,12 +1768,22 @@ void ChassisTask(void)
         }
 
         // 右摇杆 Y 轴 -> 前后线速度 vx
-        vx = CHASSIS_REMOTE_VX_SIGN * raw_vx / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        vx = CHASSIS_REMOTE_VX_SIGN * raw_vx / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR * linear_scale;
         // 右摇杆 X 轴 -> 左右线速度 vy
-        vy = CHASSIS_REMOTE_VY_SIGN * raw_vy / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR;
+        vy = CHASSIS_REMOTE_VY_SIGN * raw_vy / REMOTE_STICK_RANGE * REMOTE_MAX_LINEAR * linear_scale;
         // 左摇杆 X 轴 -> 旋转角速度 vw
-        vw = CHASSIS_REMOTE_VW_SIGN * raw_vw / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR;
+        vw = CHASSIS_REMOTE_VW_SIGN * raw_vw / REMOTE_STICK_RANGE * REMOTE_MAX_ANGULAR * angular_scale;
 
+#if CHASSIS_TRANSLATION_DIR_CHANGE_ENABLE
+        chassis_translation_drive_scale *=
+            ChassisTranslationDirectionChangeScale(vx, vy, raw_translation_norm, translation_drive_start);
+#else
+        chassis_debug.translation_dir_change_active = 0U;
+        chassis_debug.translation_dir_delta_deg = 0.0f;
+        chassis_debug.translation_dir_change_scale = 1.0f;
+#endif
+
+        chassis_debug.fine_control_mode = fine_control_mode;
         chassis_debug.remote_right_y = (float)remote_boxer.right_y;
         chassis_debug.remote_right_x = (float)remote_boxer.right_x;
         chassis_debug.remote_left_x = (float)remote_boxer.left_x;

@@ -77,7 +77,7 @@
 
 #define STEERING_CHASSIS_ALIGN_TOTAL_ECD_LF -3869         // 左前 ID7 光电门归零后的目标累计 ECD
 #define STEERING_CHASSIS_ALIGN_TOTAL_ECD_RF -8575.0f  // 右前 ID8 光电门归零后的目标累计 ECD
-#define STEERING_CHASSIS_ALIGN_TOTAL_ECD_LB 13159.0f  // 左后 ID5 光电门归零后的目标累计 ECD
+#define STEERING_CHASSIS_ALIGN_TOTAL_ECD_LB 12711.0f  // 左后 ID5 光电门归零后的目标累计 ECD
 #define STEERING_CHASSIS_ALIGN_TOTAL_ECD_RB 6430         // 右后 ID6 光电门归零后的目标累计 ECD
 
 #define STEERING_CHASSIS_ALIGN_ANGLE_LF CHASSIS_STEER_ECD_TO_DEG(STEERING_CHASSIS_ALIGN_TOTAL_ECD_LF) // 左前 ID7 初始电机角度
@@ -97,7 +97,7 @@
 
 /* 遥控器摇杆映射参数 */
 #define REMOTE_STICK_RANGE    660.0f   // 摇杆最大行程值(±660为DJI DT7典型值)
-#define REMOTE_MAX_LINEAR     40000.0f  // 最大线速度 (deg/s, 约333 RPM)
+#define REMOTE_MAX_LINEAR     50000.0f  // 最大线速度 (deg/s, 约333 RPM)
 #define REMOTE_MAX_ANGULAR    15000.0f  // 最大角速度 (deg/s)
 #define REMOTE_DEADBAND       50.0f    // 摇杆死区 (deg/s)
 

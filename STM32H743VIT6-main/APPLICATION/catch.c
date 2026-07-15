@@ -34,23 +34,24 @@ static float level_pos = -0.2642f;
 /* 达妙位置速度模式下的目标速度。 */
 static float dm4310_target_vel = 1.5f;
 
-#define DM_LEVEL_ADJUST_STEP_RAD   0.0087266463f
-#define DM_LEVEL_ADJUST_LIMIT_RAD  0.0436332313f
+#define DM_LEVEL_ADJUST_STEP_RAD   0.0872664626f
+#define DM_LEVEL_ADJUST_LIMIT_RAD  1.0471975512f
+#define DM_LEVEL_ADJUST_RAD_TO_DEG 57.2957795f
 
 /* 判断达妙已经到达 level_pos 的允许误差，单位 rad。 */
 #define DM_LEVEL_POS_TOL_RAD      0.15f
 /* 3508 默认角度目标；不在状态机流程内时保持在该位置。 */
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
-#define LIFT_DEFAULT_ANGLE_REF    5000
+#define LIFT_DEFAULT_ANGLE_REF    13000
 #else
-#define LIFT_DEFAULT_ANGLE_REF    18000
+#define LIFT_DEFAULT_ANGLE_REF    19000
 #endif
 /* 非左1工作区间中，3508 回默认角度后才允许飞特张开的到位死区。 */
 #define LIFT_DEFAULT_ANGLE_TOL    500.0f
 /* 第二套遥控逻辑中 six_pos=4 的 3508 目标。 */
-#define LIFT_ALT_MOVE_ANGLE_REF   20000.0f
+#define LIFT_ALT_MOVE_ANGLE_REF   28000.0f
 /* 左1右1抓取完成后，3508 上抬到该角度目标。 */
-#define LIFT_CATCH_RAISE_REF      21000.0f
+#define LIFT_CATCH_RAISE_REF      25000.0f
 /* 左1右2流程中，3508 堵转复位阶段的速度环目标。 */
 #define LIFT_SECOND_SPEED_REF     (-5000)
 /* 左1右2流程开始时，3508 先上升到该角度后再执行达妙 level 流程。 */
@@ -62,7 +63,7 @@ static float dm4310_target_vel = 1.5f;
 /* 左1右2流程中，PC2 拉低后再等待多久才启动 3508 下行判断，单位 ms。 */
 #define LIFT_SECOND_PC2_LOW_WAIT_MS 500U
 /* 左1右2流程中，3508 判定堵转/接触限位的电流阈值。 */
-#define LIFT_SECOND_CURRENT_LIMIT 1900
+#define LIFT_SECOND_CURRENT_LIMIT 1650
 /* 左1右2流程中，低于该角度时允许电流堵转触发下一状态。 */
 #define LIFT_SECOND_STALL_ANGLE_MAX 12000.0f
 /* 左1右2流程中，低于该角度时不等堵转电流，直接触发下一状态。 */
@@ -70,7 +71,7 @@ static float dm4310_target_vel = 1.5f;
 /* 左1右2流程中，3508 进入速度环后延时多久再开始检测电流，单位 ms。 */
 #define LIFT_SECOND_CURRENT_DELAY_MS 900U
 /* 左1右3释放流程中，3508 先在当前角度基础上上升的增量。 */
-#define LIFT_RELEASE_RAISE_DELTA  2500.0f
+#define LIFT_RELEASE_RAISE_DELTA  5000.0f
 /* 左1右3释放流程中，PC2 动作前 3508 下降到的第一目标角度。 */
 #define LIFT_RELEASE_DOWN_REF     11000.0f
 /* 左1右3释放流程中，PC2 拉低后 3508 最终下降保持的角度。 */
@@ -114,8 +115,30 @@ volatile uint8_t catch_remote_sb;
 volatile uint8_t catch_remote_six_pos;
 volatile uint8_t catch_remote_se;
 volatile uint8_t catch_remote_sf;
+volatile uint8_t catch_feite_closed_after_arm;
 volatile float catch_dm4310_level_adjust_deg;
 volatile float catch_dm4310_level_target_pos;
+
+static void CatchDMMotorEnsureEnabled(void)
+{
+    if (dm4310_motor == NULL) {
+        return;
+    }
+
+    if (dm4310_motor->measure.state != 1U) {
+        DMMotorEnable(dm4310_motor);
+    }
+}
+
+static void CatchDMMotorSetPosVelRef(float pos)
+{
+    if (dm4310_motor == NULL) {
+        return;
+    }
+
+    DMMotorSetPosVelRef(dm4310_motor, pos, dm4310_target_vel);
+    CatchDMMotorEnsureEnabled();
+}
 
 /* 初始化飞特舵机总线和 ID=3 的夹爪舵机。 */
 static void FeiteMotorsInit(void)
@@ -166,8 +189,7 @@ static void DJIMotorsInit(void)
 
     if (dm4310_motor != NULL) {
         DMMotorSetControlMode(dm4310_motor, DM_MODE_POS_VEL );
-        DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
-        DMMotorEnable(dm4310_motor);
+        CatchDMMotorSetPosVelRef(init_pos);
     }
 
     Motor_Init_Config_s M3508_config = {
@@ -203,6 +225,7 @@ static void DJIMotorsInit(void)
             .feedforward_flag = FEEDFORWARD_NONE,
         },
         .motor_type = M3508,
+
     };
     DJM3508 = DJIMotorInit(&M3508_config);
     DJIMotorStop(DJM3508);
@@ -236,7 +259,7 @@ static void LiftInit(void)
 static void FeiteCatch(void)
 {
 
-    FeiteMotorSetRef(FT_3, 1880);
+    FeiteMotorSetRef(FT_3, 1800);
     FeiteMotorSetSpeed(FT_3, 1000);
     FeiteMotorSetAcc(FT_3, 1000);
 
@@ -289,7 +312,7 @@ static uint8_t CatchRemoteSwitchValid(uint8_t value)
 
 static uint8_t CatchRemoteTaskModeIsCatch(void)
 {
-    return (remote_boxer.sa == 1U) ? 1U : 0U;
+    return (remote_boxer.sb == 1U) ? 1U : 0U;
 }
 
 static uint8_t CatchRemoteSixPos(void)
@@ -345,7 +368,7 @@ static float CatchLevelAdjustTarget(uint8_t active)
         last_sf = current_sf;
     }
 
-    catch_dm4310_level_adjust_deg = adjust_rad / DM_LEVEL_ADJUST_STEP_RAD * 0.5f;
+    catch_dm4310_level_adjust_deg = adjust_rad * DM_LEVEL_ADJUST_RAD_TO_DEG;
     catch_dm4310_level_target_pos = level_pos + adjust_rad;
 
     return catch_dm4310_level_target_pos;
@@ -432,6 +455,7 @@ void CatchTask(void)
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
     static uint8_t alt_catch_unlocked = 0U;
     static uint8_t alt_arm_seen = 0U;
+    static uint8_t alt_feite_caught_once = 0U;
 #endif
 
     LiftInit();
@@ -443,15 +467,16 @@ void CatchTask(void)
         return;
     }
 
+    CatchDMMotorEnsureEnabled();
+
     if (remote_data != NULL) {
         uint8_t catch_mode_active = CatchRemoteTaskModeIsCatch();
         uint8_t catch_switch_left = CatchRemoteLeftSwitch();
         uint8_t catch_six_pos = CatchRemoteSixPos();
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
-        uint8_t catch_level_adjust_active = 0U;
-        float catch_level_target_pos = level_pos;
-
-        (void)CatchLevelAdjustTarget(catch_level_adjust_active);
+        uint8_t catch_level_adjust_active =
+            ((catch_mode_active != 0U) && (catch_six_pos == 3U)) ? 1U : 0U;
+        float catch_level_target_pos = CatchLevelAdjustTarget(catch_level_adjust_active);
 #else
         uint8_t catch_level_adjust_active =
             ((catch_mode_active != 0U) && (catch_six_pos == 3U)) ? 1U : 0U;
@@ -466,7 +491,7 @@ void CatchTask(void)
 
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
         if (catch_mode_active == 0U) {
-            if (remote_boxer.sa == 2U) {
+            if (remote_boxer.sb == 2U) {
                 alt_arm_seen = 1U;
             }
             alt_catch_unlocked = 0U;
@@ -483,6 +508,9 @@ void CatchTask(void)
             return;
         }
 
+        catch_feite_closed_after_arm =
+            ((alt_arm_seen != 0U) && (alt_feite_caught_once != 0U)) ? 1U : 0U;
+
         if (alt_catch_unlocked == 0U) {
             uint8_t required_six_pos = (alt_arm_seen != 0U) ? 2U : 1U;
 
@@ -497,11 +525,17 @@ void CatchTask(void)
                 DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
                 DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
                 if (dm4310_motor != NULL) {
-                    DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
+                    CatchDMMotorSetPosVelRef(init_pos);
+                }
+                if (catch_feite_closed_after_arm != 0U) {
+                    FeiteMotorSetTorque(FT_3, FEITE_HOLD_TORQUE);
+                    FeiteCatch();
                 }
                 if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
                     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
-                    FeiteOpen();
+                    if (catch_feite_closed_after_arm == 0U) {
+                        FeiteOpen();
+                    }
                 }
                 FeiteMotorControl();
                 return;
@@ -511,6 +545,7 @@ void CatchTask(void)
         }
 
         if (catch_six_pos == 2U) {
+            alt_feite_caught_once = 1U;
             FeiteCatch();
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
@@ -564,10 +599,7 @@ void CatchTask(void)
             release_wait_start_time = 0U;
 
             if (dm4310_motor != NULL) {
-                DMMotorSetPosVelRef(dm4310_motor, catch_level_target_pos, dm4310_target_vel);
-                if (dm4310_motor->measure.state != 1U) {
-                    DMMotorEnable(dm4310_motor);
-                }
+                CatchDMMotorSetPosVelRef(catch_level_target_pos);
             }
         } else if (catch_six_pos == 4U) {
             level_action_started = 0U;
@@ -585,11 +617,17 @@ void CatchTask(void)
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             if (dm4310_motor != NULL) {
-                DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
+                CatchDMMotorSetPosVelRef(init_pos);
+            }
+            if (catch_feite_closed_after_arm != 0U) {
+                FeiteMotorSetTorque(FT_3, FEITE_HOLD_TORQUE);
+                FeiteCatch();
             }
             if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
                 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
-                FeiteOpen();
+                if (catch_feite_closed_after_arm == 0U) {
+                    FeiteOpen();
+                }
             }
         }
 #else
@@ -694,10 +732,7 @@ void CatchTask(void)
 
                 /* 达妙电机到达 level_pos 后，进入状态5，开始到位后的延时等待。 */
                 if ((level_action_started != 4U) && (dm4310_motor != NULL)) {
-                    DMMotorSetPosVelRef(dm4310_motor, catch_level_target_pos, dm4310_target_vel);
-                    if (dm4310_motor->measure.state != 1U) {
-                        DMMotorEnable(dm4310_motor);
-                    }
+                    CatchDMMotorSetPosVelRef(catch_level_target_pos);
 
                     if ((level_action_started == 1U) &&
                         (fabsf(dm4310_motor->measure.position_rad - catch_level_target_pos) <= DM_LEVEL_POS_TOL_RAD)) {
@@ -866,7 +901,7 @@ void CatchTask(void)
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             if (dm4310_motor != NULL) {
-                DMMotorSetPosVelRef(dm4310_motor, init_pos, dm4310_target_vel);
+                CatchDMMotorSetPosVelRef(init_pos);
             }
             if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
                 HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);

@@ -24,6 +24,7 @@
 | 右摇杆 Y | 底盘前后 `vx` |
 | 右摇杆 X | 底盘左右平移 `vy` |
 | 左摇杆 X | 底盘旋转 `vw` |
+| `SB=1/2` | 任务区域选择：`SB=1` 进入 catch，`SB=2` 进入 arm；原底盘低速精调模式暂时禁用 |
 | `SC=2` | 默认中位，不触发航向预设 |
 | `SC: 2 -> 1` | 底盘以当前航向为基准左转 90 度，只触发一次 |
 | `SC: 2 -> 3` | 底盘以当前航向为基准右转 90 度，只触发一次 |
@@ -36,12 +37,12 @@
 
 | 遥控器状态 | 控制内容 |
 |---|---|
-| `SA=1` | 进入 catch 区域 |
-| `SA=2` | 进入 arm 区域 |
+| `SB=1` | 进入 catch 区域 |
+| `SB=2` | 进入 arm 区域 |
 
 ### Catch
 
-有效前提：`SA=1`。
+有效前提：`SB=1`。
 
 | 遥控器状态 | 控制内容 |
 |---|---|
@@ -58,7 +59,7 @@
 
 ### Arm
 
-有效前提：`SA=2`。
+有效前提：`SB=2`。
 
 进入 arm 区域时，如果 `six_pos` 不是 `1`，arm 处于锁定状态，不执行六档动作；必须先拨回 `six_pos=1` 解锁。
 
@@ -69,7 +70,7 @@
 | `six_pos=3` | 原 ARM J2 任务的第 2 档预设 |
 | `six_pos=4` | 原 ARM J2 任务的第 3 档预设 |
 | `six_pos=5` | 执行 `Arm_ActionPreset2()` 的 J2/大机械臂部分 |
-| `six_pos=6` | 执行旧 `SB=2, SC=3` 中保留下来的 J2/大机械臂部分 |
+| `six_pos=6` | 执行旧逻辑中保留下来的 J2/大机械臂部分 |
 | `SD=1` | arm/J2 气泵关闭 |
 | `SD=2` | arm/J2 气泵开启 |
 
@@ -81,12 +82,12 @@
 
 | 遥控器状态 | 控制内容 |
 |---|---|
-| `SA=1` | 进入 catch 区域 |
-| `SA=2` | 进入 arm 区域 |
+| `SB=1` | 进入 catch 区域 |
+| `SB=2` | 进入 arm 区域 |
 
 ### Catch
 
-有效前提：`SA=1`，并带进入保护：
+有效前提：`SB=1`，并带进入保护：
 
 | 进入场景 | 解锁条件 |
 |---|---|
@@ -108,21 +109,22 @@
 
 ### Arm
 
-有效前提：`SA=2`。
+有效前提：`SB=2`。
 
 进入 arm 区域时，如果 `six_pos` 不是 `1`，arm 处于锁定状态，不执行六档动作；必须先拨回 `six_pos=1` 解锁。
 
 | 遥控器状态 | 控制内容 |
 |---|---|
 | `six_pos=1` | 解锁位/空档，保持当前 J1 目标，不应用新预设 |
-| `six_pos=2` | 旧 `SB=2, SC=1` 的 J1 目标和 H1/H2 舵机预设 |
-| `six_pos=3` | 旧 `SB=2, SC=2` 的 J1 目标和 H1/H2 舵机预设 |
-| `six_pos=4` | 旧 `SB=2, SC=3` 的 J1 目标和 H1/H2 舵机预设 |
-| `six_pos=5/6` | 不执行动作，保持当前 J1 目标 |
+| `six_pos=2` | J1 预设 1，并同步 H1/H2 舵机预设 |
+| `six_pos=3` | J1 预设 2，并同步 H1/H2 舵机预设 |
+| `six_pos=4` | J1 预设 3，并同步 H1/H2 舵机预设 |
+| `six_pos=5` | J1 达妙电机失能释放负载；保持 5 挡期间不继续下发 J1 位置目标 |
+| `six_pos=6` | 不执行动作，保持当前 J1 目标 |
 | `SD=1` | J1 气泵关闭，J2 气泵保持关闭 |
 | `SD=2` | J1 气泵开启，J2 气泵保持关闭 |
 
-说明：profile 1 的 ARM 模式严格跳过 J2，不调用 J2 预设函数，不下发 `motor_j2` 新目标。当前代码按现有接线命名假定 J1 气泵对应 `Arm_AirModule1Set()`，J2 气泵对应 `Arm_AirModule2Set()`。
+说明：profile 1 的 SD 右挡始终控制 J1 气泵，不受 catch/arm 区域切换或 arm 解锁状态影响；J2 气泵保持关闭。profile 1 的 ARM 模式严格跳过 J2，不调用 J2 预设函数，不下发 `motor_j2` 新目标。当前代码按现有接线命名假定 J1 气泵对应 `Arm_AirModule1Set()`，J2 气泵对应 `Arm_AirModule2Set()`。
 
 ## 当前需要 Watch 的变量
 
@@ -143,9 +145,17 @@ catch_dm4310_level_target_pos
 arm_debug.mode
 arm_debug.six_pos
 arm_debug.six_pos_unlocked
+arm_debug.j1_remote_stopped
 arm_debug.air_pc8_on
 arm_debug.air_pd3_on
 chassis_debug.cmd_vx
 chassis_debug.cmd_vy
 chassis_debug.cmd_vw
+chassis_debug.fine_control_mode
+chassis_debug.manual_rotate_active
+chassis_debug.rotate_release_settle_active
+chassis_debug.translation_dir_change_active
+chassis_debug.translation_dir_change_scale
 ```
+
+补充：从 arm 区域切到 catch 区域时不会额外重置气泵；J1 气泵只跟随 SD 当前挡位，J2 气泵仍保持关闭。

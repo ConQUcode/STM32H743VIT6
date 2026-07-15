@@ -23,16 +23,16 @@
 
 /* ===================== 遥控器任务映射说明 =====================
  *
- * SA=1: catch 区域。SD 只触发 USB 屏幕下一张，ARM 气泵关闭。
- * SA=2: arm 区域。进入时 six_pos 必须先回到 1 才解锁。
+ * SB=1: catch 区域。SD 只触发 USB 屏幕下一张，ARM 气泵关闭。
+ * SB=2: arm 区域。进入时 six_pos 必须先回到 1 才解锁。
  *
  * ARM 解锁后:
- *   - six_pos=1: 空档，保持当前 J2 目标。
- *   - six_pos=2/3/4: 原 J2 任务 1/2/3 档。
- *   - six_pos=5: Arm_ActionPreset2() 的 J2/大机械臂部分。
- *   - six_pos=6: 旧 SB=2, SC=3 中保留的 J2/大机械臂部分。
+ *   - six_pos=1: 空档，保持当前 J1 目标。
+ *   - six_pos=2/3/4: J1 预设 1/2/3 档，并同步 H1/H2 舵机预设。
+ *   - six_pos=5: J1 达妙电机失能；切到其他档位后重新使能。
+ *   - six_pos=6: 空档，保持当前 J1 目标。
  *
- * ARM 模式不再使用 SB/SC 选任务，不在主任务中下发 J1 新目标。
+ * ARM 模式不再使用 SB/SC 选任务，ALT profile 不在主任务中下发 J2 新目标。
  * 小机械臂气泵遥控控制暂时移除并默认关闭。
  */
 
@@ -60,15 +60,15 @@ static HEMotor_Instance *motor_h2;    /* 2号幻尔舵机, USART6 */
 #define J1_MAX_VEL_RAD_S     1.2f
 #define J1_PRESET_1_DEG      (1.2f * RAD_2_DEGREE)
 #define J1_PRESET_2_DEG      (1.2f * RAD_2_DEGREE)
-#define J1_PRESET_3_DEG      (3.7f * RAD_2_DEGREE)
-#define H1_INIT_POS          390U
+#define J1_PRESET_3_DEG      (3.855f * RAD_2_DEGREE)
+#define H1_INIT_POS          190U
 #define H2_INIT_POS          440U
 #define H1_PRESET_1_POS      390U
 #define H2_PRESET_1_POS      170U
-#define H1_PRESET_2_POS      780U
+#define H1_PRESET_2_POS      480U
 #define H2_PRESET_2_POS      230U
-#define H1_PRESET_3_POS      780U
-#define H2_PRESET_3_POS      290U
+#define H1_PRESET_3_POS      480U
+#define H2_PRESET_3_POS      140U
 #define ARM_ACTION1_DM3_POS_RAD   (3.1f)
 #define ARM_ACTION1_SERVO2_POS    440U
 #define ARM_ACTION2_DM2_POS_RAD   (-3.1f)
@@ -122,6 +122,7 @@ static float target_j2_deg = J2_INIT_POS_RAD * RAD_2_DEGREE;
 static uint8_t arm_mode_was_active = 0U;
 static uint8_t arm_six_pos_unlocked = 0U;
 static uint8_t arm_last_six_pos = 0U;
+static uint8_t arm_j1_remote_stopped = 0U;
 static uint8_t catch_last_sd_switch = 0U;
 static uint8_t arm_last_sd_switch = 0U;
 
@@ -147,6 +148,7 @@ static volatile struct {
     uint8_t six_pos;
     uint8_t six_pos_unlocked;
     uint8_t last_six_pos;
+    uint8_t j1_remote_stopped;
     uint8_t air_pc8_on;
     uint8_t air_pd3_on;
 } arm_debug;
@@ -186,12 +188,12 @@ static uint8_t ArmRemoteSixPos(void)
 
 static uint8_t ArmRemoteTaskModeIsCatch(void)
 {
-    return (remote_boxer.sa == 1U) ? 1U : 0U;
+    return (remote_boxer.sb == 1U) ? 1U : 0U;
 }
 
 static uint8_t ArmRemoteTaskModeIsArm(void)
 {
-    return (remote_boxer.sa == 2U) ? 1U : 0U;
+    return (remote_boxer.sb == 2U) ? 1U : 0U;
 }
 
 static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
@@ -203,8 +205,13 @@ static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
      * Profile ALT assumes the J1 air pump is wired to AirModule1 (PD2).
      * AirModule2 is the original J2/arm pump path and is held off here.
      */
-    if (ArmRemoteTaskModeIsCatch() != 0U) {
+    if (current_sd == 1U) {
         Arm_AirModule1Set(0U);
+    } else if (current_sd == 2U) {
+        Arm_AirModule1Set(1U);
+    }
+
+    if (ArmRemoteTaskModeIsCatch() != 0U) {
         Arm_AirModule2Set(0U);
 
         if ((catch_last_sd_switch == 1U) && (current_sd == 2U)) {
@@ -219,20 +226,14 @@ static void Arm_ProcessAirKeys(uint8_t arm_unlocked)
         return;
     }
 
-    if ((ArmRemoteTaskModeIsArm() != 0U) && (arm_unlocked != 0U)) {
+    if (ArmRemoteTaskModeIsArm() != 0U) {
         Arm_AirModule2Set(0U);
-        if (current_sd == 1U) {
-            Arm_AirModule1Set(0U);
-        } else if (current_sd == 2U) {
-            Arm_AirModule1Set(1U);
-        }
 
         arm_last_sd_switch = current_sd;
         catch_last_sd_switch = current_sd;
         return;
     }
 
-    Arm_AirModule1Set(0U);
     Arm_AirModule2Set(0U);
     arm_last_sd_switch = current_sd;
     catch_last_sd_switch = current_sd;
@@ -487,10 +488,11 @@ void Arm_Task(void)
         arm_mode_was_active = 0U;
         arm_six_pos_unlocked = 0U;
         arm_last_six_pos = six_pos;
-        arm_debug.mode = remote_boxer.sa;
+        arm_debug.mode = remote_boxer.sb;
         arm_debug.six_pos = six_pos;
         arm_debug.six_pos_unlocked = 0U;
         arm_debug.last_six_pos = arm_last_six_pos;
+        arm_debug.j1_remote_stopped = arm_j1_remote_stopped;
         Arm_ProcessAirKeys(0U);
         HEMotorControl();
         return;
@@ -522,6 +524,11 @@ void Arm_Task(void)
     }
 
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
+    if ((arm_j1_remote_stopped != 0U) && (six_pos != 5U)) {
+        DMMotorEnable(motor_j1);
+        arm_j1_remote_stopped = 0U;
+    }
+
     if (arm_six_pos_unlocked != 0U) {
         switch (six_pos) {
             case 2U:
@@ -536,12 +543,21 @@ void Arm_Task(void)
                 Arm_ApplyJ1OnlyPreset(3U);
                 break;
 
+            case 5U:
+                if (arm_j1_remote_stopped == 0U) {
+                    DMMotorStop(motor_j1);
+                    arm_j1_remote_stopped = 1U;
+                }
+                break;
+
             default:
                 break;
         }
     }
 
-    if (motor_j1 != NULL) {
+    arm_debug.j1_remote_stopped = arm_j1_remote_stopped;
+
+    if ((motor_j1 != NULL) && (arm_j1_remote_stopped == 0U)) {
         DMMotorSetPosVelRef(motor_j1,
                             J1_MOTOR_SIGN * target_angles.j1 * DEGREE_2_RAD,
                             J1_MAX_VEL_RAD_S);

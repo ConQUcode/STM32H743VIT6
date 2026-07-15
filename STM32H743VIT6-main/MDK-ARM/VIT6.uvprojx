@@ -829,6 +829,11 @@
               <FileType>1</FileType>
               <FilePath>..\APPLICATION\arm.c</FilePath>
             </File>
+            <File>
+              <FileName>remote_logic_profile.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\APPLICATION\remote_logic_profile.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
