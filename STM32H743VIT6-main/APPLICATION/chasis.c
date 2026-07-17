@@ -82,7 +82,7 @@
 #if REMOTE_LOGIC_PROFILE == REMOTE_LOGIC_PROFILE_ALT
 #define CHASSIS_IMU_CORRECTION_ENABLE 0U              // ALT 遥控逻辑关闭 IMU 航向修正
 #else
-#define CHASSIS_IMU_CORRECTION_ENABLE 1U              // CURRENT 遥控逻辑启用 IMU 航向修正
+#define CHASSIS_IMU_CORRECTION_ENABLE 0U              // CURRENT 遥控逻辑暂时关闭 IMU 航向修正
 #endif
 #define CHASSIS_STOP_STEERING_ALIGN_VW_DEADBAND 0.2f  // 停车对正时角速度死区
 #define CHASSIS_IDLE_YAW_CORRECTION_HOLD_ENABLE 0U    // 静止且航向误差很小时是否暂停 IMU 闭环: 1=暂停, 0=全程闭环

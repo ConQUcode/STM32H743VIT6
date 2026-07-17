@@ -7,7 +7,7 @@
  *   2. CatchTask() 周期执行 LiftInit()，升降机构归零完成后才响应遥控器命令。
  *   3. 左拨杆=1、右拨杆=1 时执行飞特夹爪抓取，并带飞特电流保护。
  *   4. 左拨杆=1、右拨杆=2 时达妙转到 level_pos，随后执行 3508 堵转复位流程。
- *   5. 左拨杆=1、右拨杆=3 时执行释放流程: 3508 动作、PC2 气缸动作、飞特大张开。
+ *   5. 左拨杆=1、右拨杆=3 时执行释放流程: 3508 上升、PC2 气缸动作、达妙回初始化角度。
  */
 
 #include "catch.h"
@@ -70,18 +70,8 @@ static float dm4310_target_vel = 1.5f;
 #define LIFT_SECOND_FORCE_NEXT_ANGLE 10000.0f
 /* 左1右2流程中，3508 进入速度环后延时多久再开始检测电流，单位 ms。 */
 #define LIFT_SECOND_CURRENT_DELAY_MS 900U
-/* 左1右3释放流程中，3508 先在当前角度基础上上升的增量。 */
-#define LIFT_RELEASE_RAISE_DELTA  5000.0f
-/* 左1右3释放流程中，PC2 动作前 3508 下降到的第一目标角度。 */
-#define LIFT_RELEASE_DOWN_REF     11000.0f
-/* 左1右3释放流程中，PC2 拉低后 3508 最终下降保持的角度。 */
-#define LIFT_RELEASE_FINAL_DOWN_REF 3500.0f
-/* 左1右3释放流程中，3508 到位判断的角度死区。 */
-#define LIFT_RELEASE_POS_TOL      500.0f
-/* 3508 下降到该角度以下时触发 PC2 拉低。 */
-#define LIFT_RELEASE_DOWN_TRIGGER 12500.0f
-/* 左1右3释放流程中，3508 上升到位后等待 PC2 后续动作的时间，单位 ms。 */
-#define LIFT_RELEASE_PC2_DELAY_MS 500U
+/* 左1右3流程中，3508 上升到位后等待多久再拉高 PC2，单位 ms。 */
+#define LIFT_RELEASE_PC2_HIGH_DELAY_MS 1500U
 /* 飞特夹爪抓取时的力矩限制值。 */
 #define FEITE_CATCH_TORQUE        1000U
 /* 飞特夹爪抓住后保持阶段的力矩限制值。 */
@@ -404,7 +394,7 @@ void CatchTask(void)
      * 1. LiftInit() 先完成 3508 初始化/归零，未完成前不响应遥控器状态机。
      * 2. 左1右1: 飞特夹爪抓取，并做电流/时间保护。
      * 3. 左1右2: 达妙转到 level_pos，PC2 拉低，3508 下行堵转后保持，再执行飞特张开-闭合重抓。
-     * 4. 左1右3: 释放流程，3508 与 PC2 配合动作，最后飞特大张开。
+     * 4. 左1右3: 3508 上升到预备高度，延时后 PC2 拉高，达妙回初始化角度，到位后 PC2 拉低。
      */
     static uint32_t catch_start_time = 0;
     static uint32_t feite_catch_start_time = 0;
@@ -428,13 +418,14 @@ void CatchTask(void)
     static float lift_hold_angle = 0.0f;
 
     /*
-     * 左1右3释放状态机 release_action_started:
-     * 0 未开始；1 上升；2 上升后延时；3 下降到第一目标；
-     * 4 PC2 拉低并继续下降；5 飞特大张开完成。
+     * 左1右3状态机 release_action_started:
+     * 0 未开始；1 3508 上升到 LIFT_SECOND_PRE_UP_REF；
+     * 2 上升到位后等待 LIFT_RELEASE_PC2_HIGH_DELAY_MS；
+     * 3 PC2 拉高，达妙回初始化角度；
+     * 4 PC2 拉低后保持。
      */
     static uint8_t release_action_started = 0U;
-    static float release_raise_target = 0.0f;
-    static uint32_t release_wait_start_time = 0U;
+    static uint32_t release_pc2_action_time = 0U;
 
     /*
      * 飞特抓取保护:
@@ -495,15 +486,6 @@ void CatchTask(void)
                 alt_arm_seen = 1U;
             }
             alt_catch_unlocked = 0U;
-            feite_catch_started = 0U;
-            feite_over_current_count = 0U;
-            feite_protected = 0U;
-            level_action_started = 0U;
-            feite_second_regrip_state = 0U;
-            release_action_started = 0U;
-            release_wait_start_time = 0U;
-            DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-            DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             FeiteMotorControl();
             return;
         }
@@ -521,7 +503,7 @@ void CatchTask(void)
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
-                release_wait_start_time = 0U;
+                release_pc2_action_time = 0U;
                 DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
                 DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
                 if (dm4310_motor != NULL) {
@@ -550,7 +532,7 @@ void CatchTask(void)
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
-            release_wait_start_time = 0U;
+            release_pc2_action_time = 0U;
 
             if (feite_catch_started == 0U) {
                 feite_catch_started = 1U;
@@ -596,7 +578,7 @@ void CatchTask(void)
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
-            release_wait_start_time = 0U;
+            release_pc2_action_time = 0U;
 
             if (dm4310_motor != NULL) {
                 CatchDMMotorSetPosVelRef(catch_level_target_pos);
@@ -605,7 +587,7 @@ void CatchTask(void)
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
-            release_wait_start_time = 0U;
+            release_pc2_action_time = 0U;
             DJIMotorEnable(DJM3508);
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_ALT_MOVE_ANGLE_REF);
@@ -613,7 +595,7 @@ void CatchTask(void)
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
-            release_wait_start_time = 0U;
+            release_pc2_action_time = 0U;
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             if (dm4310_motor != NULL) {
@@ -640,7 +622,7 @@ void CatchTask(void)
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
-                release_wait_start_time = 0U;
+                release_pc2_action_time = 0U;
 
                 /*
                  * 飞特抓取保护:
@@ -701,7 +683,7 @@ void CatchTask(void)
              */
             if (catch_six_pos == 3U) {
                 release_action_started = 0U;
-                release_wait_start_time = 0U;
+                release_pc2_action_time = 0U;
 
                 /* 状态0 -> 状态4: 左1右2刚进入，启动整套 level 流程。 */
                 if (level_action_started == 0U) {
@@ -823,66 +805,78 @@ void CatchTask(void)
                 }
 
             } else if (catch_six_pos == 4U) {
-                /* 左1右3: 释放流程，先上升，再下降，PC2 拉低后飞特大张开。 */
+                /* 左1右3: 3508 先上升到预备高度，延时后 PC2 拉高，达妙归零到位后 PC2 拉低。 */
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
 
                 if (release_action_started == 0U) {
                     release_action_started = 1U;
-                    release_raise_target = DJM3508->measure.total_angle + LIFT_RELEASE_RAISE_DELTA;
-                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                    release_pc2_action_time = 0U;
+                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, release_raise_target);
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
                 }
 
                 if (release_action_started == 1U) {
-                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, release_raise_target);
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
 
-                    if (fabsf(DJM3508->measure.total_angle - release_raise_target) <= LIFT_RELEASE_POS_TOL) {
+                    if (DJM3508->measure.total_angle >= (LIFT_SECOND_PRE_UP_REF - LIFT_SECOND_PRE_UP_TOL)) {
                         release_action_started = 2U;
-                        release_wait_start_time = HAL_GetTick();
+                        release_pc2_action_time = HAL_GetTick();
                     }
                 } else if (release_action_started == 2U) {
-                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, release_raise_target);
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
 
-                    if ((uint32_t)(HAL_GetTick() - release_wait_start_time) >= LIFT_RELEASE_PC2_DELAY_MS) {
+                    if ((uint32_t)(HAL_GetTick() - release_pc2_action_time) >= LIFT_RELEASE_PC2_HIGH_DELAY_MS) {
                         release_action_started = 3U;
+                        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
                     }
                 } else if (release_action_started == 3U) {
                     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_SET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, LIFT_RELEASE_DOWN_REF);
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
+                    if (dm4310_motor != NULL) {
+                        CatchDMMotorSetPosVelRef(init_pos);
 
-                    if (DJM3508->measure.total_angle <= LIFT_RELEASE_DOWN_TRIGGER) {
+                        if (fabsf(dm4310_motor->measure.position_rad - init_pos) <= DM_LEVEL_POS_TOL_RAD) {
+                            release_action_started = 4U;
+                            HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                        }
+                    } else {
                         release_action_started = 4U;
-                        release_wait_start_time = HAL_GetTick();
                         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
                     }
                 } else if (release_action_started == 4U) {
                     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, LIFT_RELEASE_FINAL_DOWN_REF);
-
-                    if (fabsf(DJM3508->measure.total_angle - LIFT_RELEASE_FINAL_DOWN_REF) <= LIFT_RELEASE_POS_TOL) {
-                        release_action_started = 5U;
-                        FeiteBigOpen();
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
+                    if (dm4310_motor != NULL) {
+                        CatchDMMotorSetPosVelRef(init_pos);
                     }
                 } else {
                     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_2, GPIO_PIN_RESET);
+                    DJIMotorEnable(DJM3508);
                     DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
-                    DJIMotorSetRef(DJM3508, LIFT_RELEASE_FINAL_DOWN_REF);
-                    FeiteBigOpen();
+                    DJIMotorSetRef(DJM3508, LIFT_SECOND_PRE_UP_REF);
+                    if (dm4310_motor != NULL) {
+                        CatchDMMotorSetPosVelRef(init_pos);
+                    }
                 }
             } else {
                 /* 左1但右拨杆不是 1/2/3: 3508 先回默认角度，到位后再把 PC2 置高。 */
                 level_action_started = 0U;
                 feite_second_regrip_state = 0U;
                 release_action_started = 0U;
-                release_wait_start_time = 0U;
+                release_pc2_action_time = 0U;
                 DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
                 DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
                 if (fabsf(DJM3508->measure.total_angle - LIFT_DEFAULT_ANGLE_REF) <= LIFT_DEFAULT_ANGLE_TOL) {
@@ -890,14 +884,20 @@ void CatchTask(void)
                 }
             }
         } else {
-            /* 非左1工作区间: 清状态机，3508 先回默认角度，到位后 PC2 置高并飞特张开。 */
+            if (catch_mode_active == 0U) {
+                /* 非 catch 工作区间: 保留 catch 状态机和执行器目标，切回 catch 后继续原状态。 */
+                FeiteMotorControl();
+                return;
+            }
+
+            /* 左1但右拨杆不是 1/2/3: 3508 先回默认角度，到位后 PC2 置高并飞特张开。 */
             feite_catch_started = 0U;
             feite_over_current_count = 0U;
             feite_protected = 0U;
             level_action_started = 0U;
             feite_second_regrip_state = 0U;
             release_action_started = 0U;
-            release_wait_start_time = 0U;
+            release_pc2_action_time = 0U;
             DJIMotorOuterLoop(DJM3508, ANGLE_LOOP);
             DJIMotorSetRef(DJM3508, LIFT_DEFAULT_ANGLE_REF);
             if (dm4310_motor != NULL) {

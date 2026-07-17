@@ -485,15 +485,11 @@ void Arm_Task(void)
     uint8_t arm_mode_active = ArmRemoteTaskModeIsArm();
 
     if (arm_mode_active == 0U) {
-        arm_mode_was_active = 0U;
-        arm_six_pos_unlocked = 0U;
-        arm_last_six_pos = six_pos;
         arm_debug.mode = remote_boxer.sb;
         arm_debug.six_pos = six_pos;
-        arm_debug.six_pos_unlocked = 0U;
+        arm_debug.six_pos_unlocked = arm_six_pos_unlocked;
         arm_debug.last_six_pos = arm_last_six_pos;
         arm_debug.j1_remote_stopped = arm_j1_remote_stopped;
-        Arm_ProcessAirKeys(0U);
         HEMotorControl();
         return;
     }
